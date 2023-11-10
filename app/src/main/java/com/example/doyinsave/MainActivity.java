@@ -8,6 +8,8 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.DownloadManager;
 import android.content.ClipData;
 import android.content.ClipDescription;
 import android.content.ClipboardManager;
@@ -15,14 +17,21 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
@@ -30,6 +39,7 @@ import io.reactivex.rxjava3.core.Observable;
 
 import com.example.doyinsave.api.Client;
 import com.example.doyinsave.api.TiktokService;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -50,6 +60,8 @@ import okhttp3.ResponseBody;
 public class MainActivity extends AppCompatActivity {
     TextInputEditText edtsetLink;
     TiktokService service = Client.getInstance().getApi();
+    Response response;
+    private AlertDialog dialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,8 +69,17 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.home_activity);
         setStatusBarGradiant(this);
         edtsetLink = findViewById(R.id.edt_setLink);
-//        myViewModel = new ViewModelProvider(this).get(MyViewModel.class);
+        AlertDialog(this);
+        listener();
+        if (isStoragePermissionGranted()) {
+            File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), getString(R.string.app_name));
+            if (!directory.exists()) {
+                directory.mkdirs();
+            }
+        }
+    }
 
+    private void listener() {
         findViewById(R.id.btn_paste).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -83,6 +104,7 @@ public class MainActivity extends AppCompatActivity {
                     if (!url.isEmpty() && url.contains("tiktok")) {
 //                        callAPI(url);
                         download(url);
+                        dialog.show();
                     } else {
                         Toast.makeText(MainActivity.this, "Enter a Valid URL!!", Toast.LENGTH_SHORT).show();
                     }
@@ -152,11 +174,10 @@ public class MainActivity extends AppCompatActivity {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeOn(Schedulers.newThread())
                 .subscribe(responseBody2 -> {
-                    Log.e("Response", "Success");
+                    Log.e("Response", "Success" + responseBody2.toString());
                     Log.e("Size", Client.getInstance().cookieInterceptor.getSize());
                     Log.e("Type", String.valueOf(responseBody2.contentType()));
                     //Save video
-                    saveVideo(responseBody2, Integer.parseInt(Client.getInstance().cookieInterceptor.getSize()));
                 }, Throwable::printStackTrace);
     }
 
@@ -173,9 +194,9 @@ public class MainActivity extends AppCompatActivity {
         return url.toString();
     }
 
-    public void saveVideo(ResponseBody body, int size) {
+    public void saveVideo(ResponseBody body, int size, String id) {
         // Tạo thư mục để lưu video
-        File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "MyAppVideos");
+        File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), getString(R.string.app_name));
 
         // Kiểm tra xem thư mục đã tồn tại chưa, nếu chưa thì tạo mới
         if (!directory.exists()) {
@@ -184,7 +205,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         // Tạo tên file dựa trên thời gian và ngày
-        String fileName = "video_" + System.currentTimeMillis() + ".mp4";
+        String fileName = "video_" + id + ".mp4";
 
         // Tạo đường dẫn đầy đủ đến file
         File file = new File(directory, fileName);
@@ -224,14 +245,24 @@ public class MainActivity extends AppCompatActivity {
                 Request request = new Request.Builder()
                         .url("https://tiktok-video-no-watermark2.p.rapidapi.com/?url=" + url)
                         .get()
-                        .addHeader("X-RapidAPI-Key", "73135137fcmsh589dcae25a44bf0p198052jsn12c80012d291")
-                        .addHeader("X-RapidAPI-Host", "tiktok-video-no-watermark2.p.rapidapi.com")
+                        .addHeader("X-RapidAPI-Key", getString(R.string.api_key))
+                        .addHeader("X-RapidAPI-Host", getString(R.string.api_host))
                         .build();
-
                 try {
-                    Response response = client.newCall(request).execute();
+                    response = client.newCall(request).execute();
+
+
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+
+                } finally {
                     if (response.isSuccessful()) {
-                        String responseBody = response.body().string();
+                        String responseBody = null;
+                        try {
+                            responseBody = response.body().string();
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
                         // Xem nội dung của Response
                         System.out.println("Response Body: " + responseBody);
                         processJsonResponse(responseBody);
@@ -239,9 +270,7 @@ public class MainActivity extends AppCompatActivity {
                         // Xử lý khi tải không thành công
                         System.out.println("Error: " + response.code() + " - " + response.message());
                     }
-
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    dialog.dismiss();
                 }
             }
         }).start();
@@ -253,37 +282,99 @@ public class MainActivity extends AppCompatActivity {
         // Kiểm tra xem có khối "data" không
         if (jsonObject.has("data")) {
             JsonObject dataObject = jsonObject.getAsJsonObject("data");
+            showBottomSheetDialog(dataObject);
+//            showBottomSheetDialog(dataObject);
+//            dialogSelectedVideo(dataObject);
 
-            if (dataObject.has("size") && dataObject.has("play")) {
-                String Size = dataObject.get("size").getAsString();
-                String Play = dataObject.get("play").getAsString();
-
-                // Hiển thị hoặc sử dụng dữ liệu theo ý muốn
-                System.out.println(" Size: " + Size);
-                System.out.println(" Play URL: " + Play);
-            }
-
-            if (dataObject.has("wm_size") && dataObject.has("wmplay")) {
-                String wmSize = dataObject.get("wm_size").getAsString();
-                String wmPlay = dataObject.get("wmplay").getAsString();
-
-                // Hiển thị hoặc sử dụng dữ liệu theo ý muốn
-                System.out.println(" WMSize: " + wmSize);
-                System.out.println(" WMPlay URL: " + wmPlay);
-            }
-
-            if (dataObject.has("hd_size") && dataObject.has("hdplay")) {
-                String hdSize = dataObject.get("hd_size").getAsString();
-                String hdPlay = dataObject.get("hdplay").getAsString();
-
-                // Hiển thị hoặc sử dụng dữ liệu theo ý muốn
-                System.out.println("HD Size: " + hdSize);
-                System.out.println("HD Play URL: " + hdPlay);
-            } else {
-                System.out.println("Không có thông tin về HD Size hoặc HD Play trong response.");
-            }
         } else {
             System.out.println("Không có khối dữ liệu (data) trong response.");
         }
+    }
+
+    private void showBottomSheetDialog(JsonObject dataObject) {
+        BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(this);
+
+        bottomSheetDialog.setContentView(R.layout.dialog_download);
+        LinearLayout btnMp4 = bottomSheetDialog.findViewById(R.id.btn_downloadmp4);
+        LinearLayout btnMp3 = bottomSheetDialog.findViewById(R.id.btn_downloadmp3);
+        btnMp4.setOnClickListener(view -> {
+            if (dataObject.has("hd_size") && dataObject.has("hdplay")) {
+                String hdSize = dataObject.get("hd_size").getAsString();
+                String hdPlay = dataObject.get("hdplay").getAsString();
+                String id = dataObject.get("id").getAsString();
+                // Hiển thị hoặc sử dụng dữ liệu theo ý muốn
+                System.out.println("HD Size: " + hdSize);
+                System.out.println("HD Play URL: " + hdPlay);
+                String fileName = "videoFHD_" + id + System.currentTimeMillis();
+                startDownload(hdPlay, fileName);
+            }
+            if (dataObject.has("wm_size") && dataObject.has("wmplay")) {
+                String wmSize = dataObject.get("wm_size").getAsString();
+                String wmPlay = dataObject.get("wmplay").getAsString();
+                String id = dataObject.get("id").getAsString();
+                // Hiển thị hoặc sử dụng dữ liệu theo ý muốn
+                System.out.println(" WMSize: " + wmSize);
+                System.out.println(" WMPlay URL: " + wmPlay);
+                String fileName = "videoHD_" + id + System.currentTimeMillis();
+                ;
+                startDownload(wmPlay, fileName);
+            } else if (dataObject.has("size") && dataObject.has("play")) {
+                String Size = dataObject.get("size").getAsString();
+                String Play = dataObject.get("play").getAsString();
+                String id = dataObject.get("id").getAsString();
+                // Hiển thị hoặc sử dụng dữ liệu theo ý muốn
+                System.out.println(" Size: " + Size);
+                System.out.println(" Play URL: " + Play);
+                String fileName = "videoSD_" + id + System.currentTimeMillis();
+                startDownload(Play, fileName);
+            }
+            bottomSheetDialog.dismiss();
+        });
+        btnMp3.setOnClickListener(view -> {
+
+        });
+        // Hiển thị BottomSheetDialog
+        bottomSheetDialog.show();
+    }
+
+    private void startDownload(String url, String namefile) {
+
+        File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), getString(R.string.app_name));
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
+        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+        request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_MOBILE | DownloadManager.Request.NETWORK_WIFI);
+        request.setTitle(getString(R.string.download));
+        request.setDescription(namefile);
+        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS + "/" + getString(R.string.app_name), namefile);
+        DownloadManager downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+        if (downloadManager != null) {
+            downloadManager.enqueue(request);
+        }
+    }
+
+    private void AlertDialog(Context context) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        // Inflate the custom layout
+        LayoutInflater inflater = getLayoutInflater();
+        View view = inflater.inflate(R.layout.custom_progress_dialog, null);
+        // Set the custom view to the AlertDialog
+        builder.setView(view);
+        // Create the AlertDialog
+        dialog = builder.create();
+        Window window = dialog.getWindow();
+        if (window == null) {
+            return;
+        }
+        window.setLayout(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT);
+        window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        WindowManager.LayoutParams windowAttributes = window.getAttributes();
+        windowAttributes.gravity = Gravity.CENTER;
+        window.setAttributes(windowAttributes);
+        // Set the AlertDialog not cancelable with back button or touch outside
+        dialog.setCanceledOnTouchOutside(false);
+        dialog.setCancelable(false);
     }
 }
