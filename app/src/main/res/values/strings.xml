@@ -22,5 +22,6 @@
     <string name="api_key">73135137fcmsh589dcae25a44bf0p198052jsn12c80012d291</string>
     <string name="api_host">tiktok-video-no-watermark2.p.rapidapi.com</string>
     <string name="video_quality">Chất lượng video?</string>
+    <string name="no_file_download">Chưa có mục tải xuống</string>
 
 </resources>

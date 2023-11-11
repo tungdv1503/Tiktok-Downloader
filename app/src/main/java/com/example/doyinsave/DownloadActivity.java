@@ -39,16 +39,22 @@ public class DownloadActivity extends AppCompatActivity {
             public void onConfigureTab(@NonNull TabLayout.Tab tab, int position) {
                 switch (position) {
                     case 0 :{
-                        tab.setText("Video ").setIcon(R.drawable.icon_play_1);
+                        tab.setText("Video ").setIcon(R.drawable.icon_play1);
                         break;
                     }
                     case 1 :{
-                        tab.setText(" Mp3 ").setIcon(R.drawable.icon_download);
+                        tab.setText(" Mp3 ").setIcon(R.drawable.icon_play2);
                         break;
                     }
                     case 2 :{
                         tab.setText(" Pinterest ").setIcon(R.drawable.icon_download);
                         break;
+                    }
+                }
+                for (int i = 0; i < tabLayout1.getTabCount(); i++) {
+                    TabLayout.Tab selectedTab = tabLayout1.getTabAt(i);
+                    if (selectedTab != null && selectedTab.getText() != null) {
+                        selectedTab.setText(selectedTab.getText().toString().toLowerCase());
                     }
                 }
             }

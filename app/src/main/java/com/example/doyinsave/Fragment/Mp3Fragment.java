@@ -1,66 +1,93 @@
 package com.example.doyinsave.Fragment;
 
+import static com.example.doyinsave.utils.FileHelper.getMp3FilesFromFolder;
+import static com.example.doyinsave.utils.FileHelper.getMp4FilesFromFolder;
+
+import android.Manifest;
+import android.content.ContentResolver;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.os.Build;
 import android.os.Bundle;
 
 import androidx.fragment.app.Fragment;
 
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.MimeTypeMap;
+import android.widget.ImageView;
+import android.widget.ListView;
+import android.widget.TextView;
 
 import com.example.doyinsave.R;
+import com.example.doyinsave.adapter.AdapterMP3;
+import com.example.doyinsave.model.MP3model;
 
-/**
- * A simple {@link Fragment} subclass.
- * Use the {@link Mp3Fragment#newInstance} factory method to
- * create an instance of this fragment.
- */
+import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+
 public class Mp3Fragment extends Fragment {
-
-    // TODO: Rename parameter arguments, choose names that match
-    // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-    private static final String ARG_PARAM1 = "param1";
-    private static final String ARG_PARAM2 = "param2";
-
-    // TODO: Rename and change types of parameters
-    private String mParam1;
-    private String mParam2;
+    TextView tvNoFile;
+    ImageView imgNoFile;
+    ListView lvDanhSach;
+    ArrayList<MP3model> list;
+    AdapterMP3 adapterMP3;
 
     public Mp3Fragment() {
         // Required empty public constructor
     }
 
-    /**
-     * Use this factory method to create a new instance of
-     * this fragment using the provided parameters.
-     *
-     * @param param1 Parameter 1.
-     * @param param2 Parameter 2.
-     * @return A new instance of fragment Mp3Fragment.
-     */
-    // TODO: Rename and change types and number of parameters
-    public static Mp3Fragment newInstance(String param1, String param2) {
-        Mp3Fragment fragment = new Mp3Fragment();
-        Bundle args = new Bundle();
-        args.putString(ARG_PARAM1, param1);
-        args.putString(ARG_PARAM2, param2);
-        fragment.setArguments(args);
-        return fragment;
-    }
-
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (getArguments() != null) {
-            mParam1 = getArguments().getString(ARG_PARAM1);
-            mParam2 = getArguments().getString(ARG_PARAM2);
-        }
+
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_mp3, container, false);
+        View v = inflater.inflate(R.layout.fragment_mp3, container, false);
+        initViews(v);
+        listener(v);
+        return v;
+    }
+
+    private void initViews(View v) {
+        tvNoFile = v.findViewById(R.id.no_file_download);
+        imgNoFile = v.findViewById(R.id.img_nofile);
+        lvDanhSach = v.findViewById(R.id.lv_danhsach_file);
+    }
+
+    private void listener(View v) {
+        list = new ArrayList<>();
+        String folderPath1 = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/" + getString(R.string.app_name);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (getContext().checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                List<File> mp3Files = getMp3FilesFromFolder(folderPath1);
+                if(mp3Files.size()>0){
+                    tvNoFile.setVisibility(View.GONE);
+                    imgNoFile.setVisibility(View.GONE);
+                }else {
+                    tvNoFile.setVisibility(View.VISIBLE);
+                    imgNoFile.setVisibility(View.VISIBLE);
+                }
+                for (File mp3File : mp3Files) {
+                    list.add(new MP3model(mp3File.getName(), mp3File.getAbsolutePath(),mp3File.getParent()));
+                    adapterMP3 = new AdapterMP3(getContext(), list);
+                    lvDanhSach.setAdapter(adapterMP3);
+                }
+            } else {
+                requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+            }
+        } else {
+
+        }
     }
 }

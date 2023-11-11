@@ -1,5 +1,7 @@
 package com.example.doyinsave;
 
+import static com.example.doyinsave.utils.FileHelper.getMp4FilesFromFolder;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
@@ -15,6 +17,7 @@ import android.content.ClipDescription;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 
 import android.graphics.Color;
@@ -31,14 +34,18 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.Observable;
 
 import com.example.doyinsave.api.Client;
 import com.example.doyinsave.api.TiktokService;
+import com.example.doyinsave.utils.FileHelper;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.gson.Gson;
@@ -49,7 +56,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.List;
 
+import io.reactivex.rxjava3.core.ObservableEmitter;
+import io.reactivex.rxjava3.core.ObservableOnSubscribe;
+import io.reactivex.rxjava3.core.Observer;
+import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -60,8 +72,9 @@ import okhttp3.ResponseBody;
 public class MainActivity extends AppCompatActivity {
     TextInputEditText edtsetLink;
     TiktokService service = Client.getInstance().getApi();
-    Response response;
     private AlertDialog dialog;
+    private Disposable disposable;
+    private SharedPreferences.Editor editor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,6 +90,8 @@ public class MainActivity extends AppCompatActivity {
                 directory.mkdirs();
             }
         }
+
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, PackageManager.PERMISSION_GRANTED);
     }
 
     private void listener() {
@@ -103,7 +118,13 @@ public class MainActivity extends AppCompatActivity {
                     String url = edtsetLink.getText().toString();
                     if (!url.isEmpty() && url.contains("tiktok")) {
 //                        callAPI(url);
-                        download(url);
+//                        download(url);
+                        Observable<String> observable = getResponseBody(url);
+                        Observer<String> observer = getObserverBody();
+                        observable.subscribeOn(Schedulers.io())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe(observer);
+
                         dialog.show();
                     } else {
                         Toast.makeText(MainActivity.this, "Enter a Valid URL!!", Toast.LENGTH_SHORT).show();
@@ -154,6 +175,7 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
     }
+
 
     @SuppressLint("CheckResult")
     public void callAPI(String baseUrl) {
@@ -240,38 +262,7 @@ public class MainActivity extends AppCompatActivity {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                OkHttpClient client = new OkHttpClient();
 
-                Request request = new Request.Builder()
-                        .url("https://tiktok-video-no-watermark2.p.rapidapi.com/?url=" + url)
-                        .get()
-                        .addHeader("X-RapidAPI-Key", getString(R.string.api_key))
-                        .addHeader("X-RapidAPI-Host", getString(R.string.api_host))
-                        .build();
-                try {
-                    response = client.newCall(request).execute();
-
-
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-
-                } finally {
-                    if (response.isSuccessful()) {
-                        String responseBody = null;
-                        try {
-                            responseBody = response.body().string();
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                        // Xem nội dung của Response
-                        System.out.println("Response Body: " + responseBody);
-                        processJsonResponse(responseBody);
-                    } else {
-                        // Xử lý khi tải không thành công
-                        System.out.println("Error: " + response.code() + " - " + response.message());
-                    }
-                    dialog.dismiss();
-                }
             }
         }).start();
     }
@@ -282,7 +273,8 @@ public class MainActivity extends AppCompatActivity {
         // Kiểm tra xem có khối "data" không
         if (jsonObject.has("data")) {
             JsonObject dataObject = jsonObject.getAsJsonObject("data");
-            showBottomSheetDialog(dataObject);
+            JsonObject dataObjectMS = jsonObject.getAsJsonObject("data").getAsJsonObject("music_info");
+            showBottomSheetDialog(dataObject, dataObjectMS);
 //            showBottomSheetDialog(dataObject);
 //            dialogSelectedVideo(dataObject);
 
@@ -291,48 +283,74 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void showBottomSheetDialog(JsonObject dataObject) {
-        BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(this);
-
+    private void showBottomSheetDialog(JsonObject dataObject, JsonObject dataObjectMS) {
+        Dialog bottomSheetDialog = new Dialog(this);
         bottomSheetDialog.setContentView(R.layout.dialog_download);
         LinearLayout btnMp4 = bottomSheetDialog.findViewById(R.id.btn_downloadmp4);
         LinearLayout btnMp3 = bottomSheetDialog.findViewById(R.id.btn_downloadmp3);
+        TextView tvNameMp3 = bottomSheetDialog.findViewById(R.id.tv_namefilemp3);
+        TextView tvNameMp4 = bottomSheetDialog.findViewById(R.id.tv_namefilemp4);
+        TextView tvSizeMp4 = bottomSheetDialog.findViewById(R.id.tv_sizefile);
+        ImageView btnClose = bottomSheetDialog.findViewById(R.id.img_close);
+        View decorView = bottomSheetDialog.getWindow().getDecorView();
+        decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+        //
+        Window window = bottomSheetDialog.getWindow();
+        if (window == null) {
+            return;
+        }
+        window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
+        window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        WindowManager.LayoutParams windowAttributes = window.getAttributes();
+        window.setAttributes(windowAttributes);
+        windowAttributes.gravity = Gravity.BOTTOM;
+
+        //
+
+
+        //
         btnMp4.setOnClickListener(view -> {
             if (dataObject.has("hd_size") && dataObject.has("hdplay")) {
-                String hdSize = dataObject.get("hd_size").getAsString();
-                String hdPlay = dataObject.get("hdplay").getAsString();
+                String SizeMP4 = dataObject.get("hd_size").getAsString();
+                String PlayMP4 = dataObject.get("hdplay").getAsString();
                 String id = dataObject.get("id").getAsString();
                 // Hiển thị hoặc sử dụng dữ liệu theo ý muốn
-                System.out.println("HD Size: " + hdSize);
-                System.out.println("HD Play URL: " + hdPlay);
-                String fileName = "videoFHD_" + id + System.currentTimeMillis();
-                startDownload(hdPlay, fileName);
-            }
-            if (dataObject.has("wm_size") && dataObject.has("wmplay")) {
-                String wmSize = dataObject.get("wm_size").getAsString();
-                String wmPlay = dataObject.get("wmplay").getAsString();
-                String id = dataObject.get("id").getAsString();
-                // Hiển thị hoặc sử dụng dữ liệu theo ý muốn
-                System.out.println(" WMSize: " + wmSize);
-                System.out.println(" WMPlay URL: " + wmPlay);
-                String fileName = "videoHD_" + id + System.currentTimeMillis();
-                ;
-                startDownload(wmPlay, fileName);
-            } else if (dataObject.has("size") && dataObject.has("play")) {
-                String Size = dataObject.get("size").getAsString();
-                String Play = dataObject.get("play").getAsString();
-                String id = dataObject.get("id").getAsString();
-                // Hiển thị hoặc sử dụng dữ liệu theo ý muốn
-                System.out.println(" Size: " + Size);
-                System.out.println(" Play URL: " + Play);
-                String fileName = "videoSD_" + id + System.currentTimeMillis();
-                startDownload(Play, fileName);
+                System.out.println("HD Size: " + SizeMP4);
+                System.out.println("HD Play URL: " + PlayMP4);
+                String fileNameMP4 = "videoFHD_" + id + System.currentTimeMillis()+ ".mp4";
+                tvNameMp4.setText(fileNameMP4);
+                tvSizeMp4.setText(SizeMP4);
+                startDownload(PlayMP4, fileNameMP4);
+            } else {
+                if (dataObject.has("size") && dataObject.has("play")) {
+                    String SizeMP4 = dataObject.get("size").getAsString();
+                    String Play = dataObject.get("play").getAsString();
+                    String id = dataObject.get("id").getAsString();
+                    // Hiển thị hoặc sử dụng dữ liệu theo ý muốn
+                    System.out.println(" Size: " + SizeMP4);
+                    System.out.println(" Play URL: " + Play);
+                    String fileNameMP4 = "ct" + id + System.currentTimeMillis() + ".mp4";
+                    tvNameMp4.setText(fileNameMP4);
+                    tvSizeMp4.setText(SizeMP4);
+                    startDownload(Play, fileNameMP4);
+                }
             }
             bottomSheetDialog.dismiss();
         });
-        btnMp3.setOnClickListener(view -> {
 
+        btnMp3.setOnClickListener(view -> {
+            if (dataObjectMS.has("play")) {
+                String PlayMP3 = dataObjectMS.get("play").getAsString();
+                String id = dataObjectMS.get("id").getAsString();
+                // Hiển thị hoặc sử dụng dữ liệu theo ý muốn
+                System.out.println(" Play URL: " + PlayMP3);
+                String fileNameMP3 = "ct" + id + System.currentTimeMillis()+ ".mp3";
+                tvNameMp3.setText(fileNameMP3 + ".mp3");
+                startDownload(PlayMP3, fileNameMP3);
+            }
+            bottomSheetDialog.dismiss();
         });
+        btnClose.setOnClickListener(view -> bottomSheetDialog.dismiss());
         // Hiển thị BottomSheetDialog
         bottomSheetDialog.show();
     }
@@ -376,5 +394,78 @@ public class MainActivity extends AppCompatActivity {
         // Set the AlertDialog not cancelable with back button or touch outside
         dialog.setCanceledOnTouchOutside(false);
         dialog.setCancelable(false);
+    }
+
+    private Observer<String> getObserverBody() {
+        return new Observer<String>() {
+            @Override
+            public void onSubscribe(@NonNull Disposable d) {
+                Log.e("onSubscribe", "onSubscribe");
+                disposable = d;
+            }
+
+            @Override
+            public void onNext(@NonNull String s) {
+                dialog.dismiss();
+                Log.e("onNext", "onNext" + s);
+                processJsonResponse(s);
+                if (disposable != null) {
+                    disposable.dispose();
+                }
+
+            }
+
+            @Override
+            public void onError(@NonNull Throwable e) {
+                Log.e("onError", "onError");
+            }
+
+            @Override
+            public void onComplete() {
+                Log.e("onComplete", "onComplete");
+            }
+        };
+    }
+
+    private Observable<String> getResponseBody(String url) {
+
+        return Observable.create(new ObservableOnSubscribe<String>() {
+            @Override
+            public void subscribe(@NonNull ObservableEmitter<String> emitter) throws Throwable {
+                OkHttpClient client = new OkHttpClient();
+
+                Request request = new Request.Builder()
+                        .url("https://tiktok-video-no-watermark2.p.rapidapi.com/?url=" + url)
+                        .get()
+                        .addHeader("X-RapidAPI-Key", getString(R.string.api_key))
+                        .addHeader("X-RapidAPI-Host", getString(R.string.api_host))
+                        .build();
+                try {
+                    Response response = client.newCall(request).execute();
+                    if (!response.isSuccessful() || response == null) {
+                        if (!emitter.isDisposed()) {
+                            emitter.onError(new IOException());
+                        }
+                    }
+                    if (response.isSuccessful()) {
+                        String responseBody = response.body().string();
+                        if (!emitter.isDisposed()) {
+                            emitter.onNext(responseBody);
+                            System.out.println("Response Body: " + responseBody);
+                        }
+
+//                        processJsonResponse(responseBody);
+                    } else {
+                        // Xử lý khi tải không thành công
+                        System.out.println("Error: " + response.code() + " - " + response.message());
+                    }
+                    if (!emitter.isDisposed()) {
+                        emitter.onComplete();
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
     }
 }
