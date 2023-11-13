@@ -148,7 +148,6 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent = new Intent(MainActivity.this, DownloadActivity.class);
                 startActivity(intent);
                 overridePendingTransition(0, 0);
-                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
             }
         });
     }
@@ -177,96 +176,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    @SuppressLint("CheckResult")
-    public void callAPI(String baseUrl) {
-        //Reset cookie
-        Client.getInstance().cookieInterceptor.cookie = "";
-        //Get cookie + video url
-        Observable<ResponseBody> response = service.getURL(baseUrl);
-        response.flatMap(responseBody1 -> {
-                    String responseStr = responseBody1.string();
-                    String cookies = Client.getInstance().cookieInterceptor.getCookie();
-                    String url = findString(responseStr);
-                    Log.e("Cookies ", cookies);
-                    Log.e("Url", url);
-                    String decode = url.replaceAll("\\\\u002F", "/");
-                    Log.e("Url decode", decode);
-                    return service.getVideo(decode, cookies);
-                })
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribeOn(Schedulers.newThread())
-                .subscribe(responseBody2 -> {
-                    Log.e("Response", "Success" + responseBody2.toString());
-                    Log.e("Size", Client.getInstance().cookieInterceptor.getSize());
-                    Log.e("Type", String.valueOf(responseBody2.contentType()));
-                    //Save video
-                }, Throwable::printStackTrace);
-    }
-
-    public String findString(String str) {
-        String a = "downloadAddr";
-        StringBuilder url = new StringBuilder();
-        int b;
-        if (!str.contains(a)) return null;
-        b = str.indexOf(a) + 15;
-        do {
-            url.append(str.charAt(b));
-            b++;
-        } while (str.charAt(b) != '"');
-        return url.toString();
-    }
-
-    public void saveVideo(ResponseBody body, int size, String id) {
-        // Tạo thư mục để lưu video
-        File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), getString(R.string.app_name));
-
-        // Kiểm tra xem thư mục đã tồn tại chưa, nếu chưa thì tạo mới
-        if (!directory.exists()) {
-            directory.mkdirs();
-        }
-
-
-        // Tạo tên file dựa trên thời gian và ngày
-        String fileName = "video_" + id + ".mp4";
-
-        // Tạo đường dẫn đầy đủ đến file
-        File file = new File(directory, fileName);
-
-        try {
-            // Mở FileOutputStream để ghi dữ liệu vào file
-            FileOutputStream fos = new FileOutputStream(file);
-
-            // Đọc dữ liệu từ InputStream và ghi vào file
-            InputStream inputStream = body.byteStream();
-            int read;
-            byte[] buffer = new byte[size];
-            while ((read = inputStream.read(buffer)) > 0) {
-                fos.write(buffer, 0, read);
-            }
-            Log.e("Path", file.getAbsolutePath());
-            // Đóng các luồng sau khi hoàn thành
-            fos.close();
-            inputStream.close();
-
-            // Log thông báo thành công
-            Log.e("Save", "Successful");
-
-
-        } catch (IOException e) {
-            // Xử lý ngoại lệ nếu có lỗi xảy ra
-            e.printStackTrace();
-        }
-    }
-
-    private void download(String url) {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-
-            }
-        }).start();
-    }
-
     private void processJsonResponse(String jsonResponse) {
         JsonObject jsonObject = new Gson().fromJson(jsonResponse, JsonObject.class);
 
@@ -275,8 +184,6 @@ public class MainActivity extends AppCompatActivity {
             JsonObject dataObject = jsonObject.getAsJsonObject("data");
             JsonObject dataObjectMS = jsonObject.getAsJsonObject("data").getAsJsonObject("music_info");
             showBottomSheetDialog(dataObject, dataObjectMS);
-//            showBottomSheetDialog(dataObject);
-//            dialogSelectedVideo(dataObject);
 
         } else {
             System.out.println("Không có khối dữ liệu (data) trong response.");
@@ -290,7 +197,6 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout btnMp3 = bottomSheetDialog.findViewById(R.id.btn_downloadmp3);
         TextView tvNameMp3 = bottomSheetDialog.findViewById(R.id.tv_namefilemp3);
         TextView tvNameMp4 = bottomSheetDialog.findViewById(R.id.tv_namefilemp4);
-        TextView tvSizeMp4 = bottomSheetDialog.findViewById(R.id.tv_sizefile);
         ImageView btnClose = bottomSheetDialog.findViewById(R.id.img_close);
         View decorView = bottomSheetDialog.getWindow().getDecorView();
         decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
@@ -304,11 +210,6 @@ public class MainActivity extends AppCompatActivity {
         WindowManager.LayoutParams windowAttributes = window.getAttributes();
         window.setAttributes(windowAttributes);
         windowAttributes.gravity = Gravity.BOTTOM;
-
-        //
-
-
-        //
         btnMp4.setOnClickListener(view -> {
             if (dataObject.has("hd_size") && dataObject.has("hdplay")) {
                 String SizeMP4 = dataObject.get("hd_size").getAsString();
@@ -319,7 +220,7 @@ public class MainActivity extends AppCompatActivity {
                 System.out.println("HD Play URL: " + PlayMP4);
                 String fileNameMP4 = "videoFHD_" + id + System.currentTimeMillis()+ ".mp4";
                 tvNameMp4.setText(fileNameMP4);
-                tvSizeMp4.setText(SizeMP4);
+
                 startDownload(PlayMP4, fileNameMP4);
             } else {
                 if (dataObject.has("size") && dataObject.has("play")) {
@@ -331,7 +232,6 @@ public class MainActivity extends AppCompatActivity {
                     System.out.println(" Play URL: " + Play);
                     String fileNameMP4 = "ct" + id + System.currentTimeMillis() + ".mp4";
                     tvNameMp4.setText(fileNameMP4);
-                    tvSizeMp4.setText(SizeMP4);
                     startDownload(Play, fileNameMP4);
                 }
             }

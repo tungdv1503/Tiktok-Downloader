@@ -4,12 +4,17 @@ import static com.example.doyinsave.utils.FileHelper.getMp3FilesFromFolder;
 import static com.example.doyinsave.utils.FileHelper.getMp4FilesFromFolder;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.ContentResolver;
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 
+import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 
 import android.os.Environment;
@@ -66,6 +71,9 @@ public class Mp3Fragment extends Fragment {
     }
 
     private void listener(View v) {
+        showList();
+    }
+    public void showList(){
         list = new ArrayList<>();
         String folderPath1 = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/" + getString(R.string.app_name);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -82,12 +90,33 @@ public class Mp3Fragment extends Fragment {
                     list.add(new MP3model(mp3File.getName(), mp3File.getAbsolutePath(),mp3File.getParent()));
                     adapterMP3 = new AdapterMP3(getContext(), list);
                     lvDanhSach.setAdapter(adapterMP3);
+                    adapterMP3.notifyDataSetChanged();
                 }
             } else {
                 requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
             }
         } else {
 
+        }
+        lvDanhSach.setOnItemClickListener((parent, view, position, id) -> {
+            openMp3File(list.get(position).getTitle(),list.get(position).getParent());
+        });
+    }
+    private void openMp3File(String fileName, String folderPath) {
+        File file = new File(folderPath, fileName);
+        if (file.exists()) {
+            Uri audioUri = FileProvider.getUriForFile(getContext(), getContext().getApplicationContext().getPackageName() + ".provider", file);
+
+            Intent audioIntent = new Intent(Intent.ACTION_VIEW);
+            audioIntent.setDataAndType(audioUri, "audio/*");
+            audioIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            try {
+                // Mở trình nghe nhạc để phát file MP3
+                startActivity(audioIntent);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 }

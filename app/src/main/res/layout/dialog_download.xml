@@ -71,7 +71,7 @@
                    android:layout_height="70dp">
 
                    <TextView
-                       android:text="Cơn mưa cầu vồng.mp4"
+                       android:text="MP4"
                        android:layout_alignParentTop="true"
                        android:id="@+id/tv_namefilemp4"
                        android:layout_marginTop="2dp"
@@ -79,13 +79,13 @@
                        android:layout_height="wrap_content"
                        android:textColor="@color/black" />
 
-                   <TextView
-                       android:id="@+id/tv_sizefile"
-                       android:layout_width="match_parent"
-                       android:layout_height="wrap_content"
-                       android:layout_alignParentBottom="true"
-                       android:layout_marginBottom="2dp"
-                       android:text="5,53 MB" />
+<!--                   <TextView-->
+<!--                       android:id="@+id/tv_sizefile"-->
+<!--                       android:layout_width="match_parent"-->
+<!--                       android:layout_height="wrap_content"-->
+<!--                       android:layout_alignParentBottom="true"-->
+<!--                       android:layout_marginBottom="2dp"-->
+<!--                       android:text="5,53 MB" />-->
                </RelativeLayout>
            </LinearLayout>
        </LinearLayout>

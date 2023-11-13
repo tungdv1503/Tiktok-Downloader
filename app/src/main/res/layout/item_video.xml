@@ -5,7 +5,7 @@
     app:cardCornerRadius="12dp"
     android:layout_height="193dp">
     <RelativeLayout
-
+        android:id="@+id/btn_startVideo"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
         <ImageView

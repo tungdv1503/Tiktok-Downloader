@@ -4,10 +4,13 @@ import static com.example.doyinsave.utils.FileHelper.getMp3FilesFromFolder;
 import static com.example.doyinsave.utils.FileHelper.getMp4FilesFromFolder;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 
+import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 
 import android.os.Environment;
@@ -79,9 +82,10 @@ public class VideoFragment extends Fragment {
                     imgNoFile.setVisibility(View.VISIBLE);
                 }
                 for (File mp4File : mp4Files) {
-                    list.add(new MP4model(mp4File.getName(), mp4File.getAbsolutePath()));
+                    list.add(new MP4model(mp4File.getName(), mp4File.getAbsolutePath(),mp4File.getParent()));
                     adapterMP4 = new AdapterMP4(getContext(), list);
                     grDanhSach.setAdapter(adapterMP4);
+                    adapterMP4.notifyDataSetChanged();
                 }
               int a =  mp4Files.size();
                 Log.e("sizeMP4",a+"");
@@ -92,5 +96,4 @@ public class VideoFragment extends Fragment {
 
         }
     }
-
 }

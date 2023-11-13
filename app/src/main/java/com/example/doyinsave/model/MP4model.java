@@ -3,10 +3,20 @@ package com.example.doyinsave.model;
 public class MP4model {
     String title;
     String path;
+    String parent;
 
-    public MP4model(String title, String path) {
+    public String getParent() {
+        return parent;
+    }
+
+    public void setParent(String parent) {
+        this.parent = parent;
+    }
+
+    public MP4model(String title, String path, String parent) {
         this.title = title;
         this.path = path;
+        this.parent = parent;
     }
 
     public String getTitle() {
