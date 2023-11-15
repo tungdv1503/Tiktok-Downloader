@@ -1,5 +1,6 @@
 package com.example.doyinsave;
 
+import static android.content.ContentValues.TAG;
 import static com.example.doyinsave.utils.FileHelper.getMp4FilesFromFolder;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -46,6 +47,12 @@ import io.reactivex.rxjava3.core.Observable;
 import com.example.doyinsave.api.Client;
 import com.example.doyinsave.api.TiktokService;
 import com.example.doyinsave.utils.FileHelper;
+import com.google.android.gms.ads.AdError;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.FullScreenContentCallback;
+import com.google.android.gms.ads.LoadAdError;
+import com.google.android.gms.ads.rewarded.RewardedAd;
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.gson.Gson;
@@ -68,13 +75,12 @@ import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
-
 public class MainActivity extends AppCompatActivity {
     TextInputEditText edtsetLink;
-    TiktokService service = Client.getInstance().getApi();
     private AlertDialog dialog;
     private Disposable disposable;
-    private SharedPreferences.Editor editor;
+    private RewardedAd rewardedAd;
+    boolean isLoading;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,6 +90,7 @@ public class MainActivity extends AppCompatActivity {
         edtsetLink = findViewById(R.id.edt_setLink);
         AlertDialog(this);
         listener();
+        loadRewardedAd();
         if (isStoragePermissionGranted()) {
             File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), getString(R.string.app_name));
             if (!directory.exists()) {
@@ -218,7 +225,7 @@ public class MainActivity extends AppCompatActivity {
                 // Hiển thị hoặc sử dụng dữ liệu theo ý muốn
                 System.out.println("HD Size: " + SizeMP4);
                 System.out.println("HD Play URL: " + PlayMP4);
-                String fileNameMP4 = "videoFHD_" + id + System.currentTimeMillis()+ ".mp4";
+                String fileNameMP4 = "videoFHD_" + id + System.currentTimeMillis() + ".mp4";
                 tvNameMp4.setText(fileNameMP4);
 
                 startDownload(PlayMP4, fileNameMP4);
@@ -244,7 +251,7 @@ public class MainActivity extends AppCompatActivity {
                 String id = dataObjectMS.get("id").getAsString();
                 // Hiển thị hoặc sử dụng dữ liệu theo ý muốn
                 System.out.println(" Play URL: " + PlayMP3);
-                String fileNameMP3 = "ct" + id + System.currentTimeMillis()+ ".mp3";
+                String fileNameMP3 = "ct" + id + System.currentTimeMillis() + ".mp3";
                 tvNameMp3.setText(fileNameMP3 + ".mp3");
                 startDownload(PlayMP3, fileNameMP3);
             }
@@ -367,5 +374,77 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    public void loadRewardedAd() {
+        if (rewardedAd == null) {
+            isLoading = true;
+            AdRequest adRequest = new AdRequest.Builder().build();
+            RewardedAd.load(
+                    this,
+                    getString(R.string.AD_UNIT_ID),
+                    adRequest,
+                    new RewardedAdLoadCallback() {
+                        @Override
+                        public void onAdFailedToLoad(@androidx.annotation.NonNull LoadAdError loadAdError) {
+                            // Handle the error.
+                            Log.d(TAG, loadAdError.getMessage());
+                            rewardedAd = null;
+                            MainActivity.this.isLoading = false;
+//                            Toast.makeText(MainActivity.this, "onAdFailedToLoad", Toast.LENGTH_SHORT).show();
+                        }
+
+                        @Override
+                        public void onAdLoaded(@androidx.annotation.NonNull RewardedAd rewardedAd) {
+                            MainActivity.this.rewardedAd = rewardedAd;
+                            Log.d(TAG, "onAdLoaded");
+                            MainActivity.this.isLoading = false;
+//                            Toast.makeText(MainActivity.this, "onAdLoaded", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+        }
+    }
+
+    public void showRewardedVideo() {
+        if (rewardedAd == null) {
+            Log.d("TAG", "The rewarded ad wasn't ready yet.");
+            return;
+        }
+
+        rewardedAd.setFullScreenContentCallback(
+                new FullScreenContentCallback() {
+                    @Override
+                    public void onAdShowedFullScreenContent() {
+                        Log.d(TAG, "onAdShowedFullScreenContent");
+//                        Toast.makeText(MainActivity.this, "onAdShowedFullScreenContent", Toast.LENGTH_SHORT)
+//                                .show();
+                    }
+
+                    @Override
+                    public void onAdFailedToShowFullScreenContent(@androidx.annotation.NonNull AdError adError) {
+                        rewardedAd = null;
+                        Log.d(TAG, "Error:" + adError);
+//                        Toast.makeText(
+//                                        MainActivity.this, "onAdFailedToShowFullScreenContent", Toast.LENGTH_SHORT)
+//                                .show();
+                    }
+
+                    @Override
+                    public void onAdDismissedFullScreenContent() {
+                        rewardedAd = null;
+                        Log.d(TAG, "onAdDismissedFullScreenContent");
+//                        Toast.makeText(MainActivity.this, "onAdDismissedFullScreenContent", Toast.LENGTH_SHORT)
+//                                .show();
+                        MainActivity.this.loadRewardedAd();
+
+                    }
+                });
+        Activity activityContext = MainActivity.this;
+        rewardedAd.show(
+                activityContext,
+                rewardItem -> {
+                    // Handle the reward.
+                    Log.d("TAG", "The user earned the reward.");
+                });
     }
 }

@@ -28,6 +28,7 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.example.doyinsave.MusicActivity;
 import com.example.doyinsave.R;
 import com.example.doyinsave.adapter.AdapterMP3;
 import com.example.doyinsave.model.MP3model;
@@ -99,7 +100,7 @@ public class Mp3Fragment extends Fragment {
 
         }
         lvDanhSach.setOnItemClickListener((parent, view, position, id) -> {
-            openMp3File(list.get(position).getTitle(),list.get(position).getParent());
+//            openMp3File(list.get(position).getTitle(),list.get(position).getParent());
         });
     }
     private void openMp3File(String fileName, String folderPath) {
@@ -119,4 +120,5 @@ public class Mp3Fragment extends Fragment {
             }
         }
     }
+
 }

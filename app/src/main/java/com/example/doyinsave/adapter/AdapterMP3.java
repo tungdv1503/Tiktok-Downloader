@@ -25,6 +25,7 @@ import androidx.core.content.FileProvider;
 
 import com.example.doyinsave.DownloadActivity;
 import com.example.doyinsave.MainActivity;
+import com.example.doyinsave.MusicActivity;
 import com.example.doyinsave.R;
 import com.example.doyinsave.model.MP3model;
 import com.example.doyinsave.utils.FileHelper;
@@ -104,6 +105,7 @@ public class AdapterMP3 extends BaseAdapter {
         });
         holder.btnStart.setOnClickListener(v -> {
             playAudio(item.getTitle(), item.getParent());
+            onItemClicked1(item.getPath());
         });
         return view;
     }
@@ -160,7 +162,7 @@ public class AdapterMP3 extends BaseAdapter {
 //            } catch (Exception e) {
 //                Log.e("Music", "Không có ứng dụng hỗ trợ nghe nhạc");
 //            }
-            onItemClicked(file);
+//            onItemClicked(file);
         } else {
             Log.e("Music", "File âm thanh không tồn tại");
         }
@@ -171,6 +173,12 @@ public class AdapterMP3 extends BaseAdapter {
         intent.setAction(Intent.ACTION_VIEW);
         intent.setDataAndType(uri, context.getContentResolver().getType(uri));
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        context.startActivity(intent);
+    }
+    public void onItemClicked1(String path){
+        Intent intent = new Intent(context, MusicActivity.class);
+        intent.putExtra("typeFile",2);
+        intent.putExtra("pathFile",path);
         context.startActivity(intent);
     }
 }

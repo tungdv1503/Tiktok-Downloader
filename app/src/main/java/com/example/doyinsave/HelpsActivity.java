@@ -41,11 +41,11 @@ public class HelpsActivity extends AppCompatActivity {
             public void onConfigureTab(@NonNull TabLayout.Tab tab, int position) {
                 switch (position) {
                     case 0 :{
-                        tab.setText(" Cách 1 ").setIcon(R.drawable.icon_download);
+                        tab.setText(" Cách 1 ").setIcon(R.drawable.ic_download);
                         break;
                     }
                     case 1 :{
-                        tab.setText(" Cách 2 ").setIcon(R.drawable.icon_download);
+                        tab.setText(" Cách 2 ").setIcon(R.drawable.ic_download);
                         break;
                     }
                 }
@@ -57,14 +57,14 @@ public class HelpsActivity extends AppCompatActivity {
                 finish();
             }
         });
-        GradientDrawable gradientDrawable = new GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{ContextCompat.getColor(this, R.color.color1),
-                        ContextCompat.getColor(this, R.color.color2),
-                        ContextCompat.getColor(this, R.color.color3)});
-        tabLayout1.setSelectedTabIndicatorColor(Color.parseColor("#0066FF"));
-        tabLayout1.setSelectedTabIndicatorHeight((int) (5 * getResources().getDisplayMetrics().density));
-        tabLayout1.setTabTextColors(Color.parseColor("#727272"), Color.parseColor("#ffffff"));
+//        GradientDrawable gradientDrawable = new GradientDrawable(
+//                GradientDrawable.Orientation.LEFT_RIGHT,
+//                new int[]{ContextCompat.getColor(this, R.color.color1),
+//                        ContextCompat.getColor(this, R.color.color2),
+//                         ContextCompat.getColor(this, R.color.color3)});
+//        tabLayout1.setSelectedTabIndicatorColor(Color.parseColor("#0066FF"));
+//        tabLayout1.setSelectedTabIndicatorHeight((int) (5 * getResources().getDisplayMetrics().density));
+//        tabLayout1.setTabTextColors(Color.parseColor("#727272"), Color.parseColor("#ffffff"));
     }
     public class CustomFragmentAdapter extends FragmentStateAdapter {
         public CustomFragmentAdapter(@NonNull FragmentActivity fragmentActivity) {

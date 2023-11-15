@@ -39,17 +39,17 @@ public class DownloadActivity extends AppCompatActivity {
             public void onConfigureTab(@NonNull TabLayout.Tab tab, int position) {
                 switch (position) {
                     case 0 :{
-                        tab.setText("Video ").setIcon(R.drawable.icon_play1);
+                        tab.setText("Video ").setIcon(R.drawable.icon_video);
                         break;
                     }
                     case 1 :{
-                        tab.setText(" Mp3 ").setIcon(R.drawable.icon_play2);
+                        tab.setText(" Mp3 ").setIcon(R.drawable.icon_music);
                         break;
                     }
-                    case 2 :{
-                        tab.setText(" Pinterest ").setIcon(R.drawable.icon_download);
-                        break;
-                    }
+//                    case 2 :{
+//                        tab.setText(" Pinterest ").setIcon(R.drawable.icon_pinterest);
+//                        break;
+//                    }
                 }
                 for (int i = 0; i < tabLayout1.getTabCount(); i++) {
                     TabLayout.Tab selectedTab = tabLayout1.getTabAt(i);
@@ -81,16 +81,16 @@ public class DownloadActivity extends AppCompatActivity {
                 case 1:{
                     return new Mp3Fragment();
                 }
-                case 2:{
-                    return  new PinterestFragment();
-                }
+//                case 2:{
+//                    return  new PinterestFragment();
+//                }
             }
             return null;
         }
 
         @Override
         public int getItemCount() {
-            return 3;
+            return 2;
         }
     }
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
