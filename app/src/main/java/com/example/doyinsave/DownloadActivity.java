@@ -9,6 +9,7 @@ import androidx.viewpager2.widget.ViewPager2;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.content.Intent;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
@@ -39,23 +40,17 @@ public class DownloadActivity extends AppCompatActivity {
             public void onConfigureTab(@NonNull TabLayout.Tab tab, int position) {
                 switch (position) {
                     case 0 :{
-                        tab.setText("Video ").setIcon(R.drawable.icon_video);
+                        tab.setText("Video").setIcon(R.drawable.icon_video);
                         break;
                     }
                     case 1 :{
-                        tab.setText(" Mp3 ").setIcon(R.drawable.icon_music);
+                        tab.setText("Mp3").setIcon(R.drawable.icon_music);
                         break;
                     }
 //                    case 2 :{
 //                        tab.setText(" Pinterest ").setIcon(R.drawable.icon_pinterest);
 //                        break;
 //                    }
-                }
-                for (int i = 0; i < tabLayout1.getTabCount(); i++) {
-                    TabLayout.Tab selectedTab = tabLayout1.getTabAt(i);
-                    if (selectedTab != null && selectedTab.getText() != null) {
-                        selectedTab.setText(selectedTab.getText().toString().toLowerCase());
-                    }
                 }
             }
         }).attach();
@@ -93,15 +88,15 @@ public class DownloadActivity extends AppCompatActivity {
             return 2;
         }
     }
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public static void setStatusBarGradiant(Activity activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             Window window = activity.getWindow();
-            Drawable background = activity.getResources().getDrawable(R.color.white);
+            Drawable background = activity.getResources().getDrawable(R.color.black);
             window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
             window.setStatusBarColor(activity.getResources().getColor(android.R.color.transparent));
-//            window.setNavigationBarColor(activity.getResources().getColor(android.R.color.transparent));
             window.setBackgroundDrawable(background);
         }
     }
+
+
 }

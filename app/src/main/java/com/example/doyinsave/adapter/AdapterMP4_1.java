@@ -1,18 +1,11 @@
 package com.example.doyinsave.adapter;
 
-import static com.example.doyinsave.utils.FileHelper.getMp3FilesFromFolder;
-
-import android.Manifest;
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Environment;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
@@ -20,31 +13,29 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.PopupWindow;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import androidx.appcompat.view.menu.MenuPopupHelper;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.content.FileProvider;
 
-import com.example.doyinsave.DownloadActivity;
-import com.example.doyinsave.MainActivity;
 import com.example.doyinsave.MusicActivity;
 import com.example.doyinsave.R;
-import com.example.doyinsave.model.MP3model;
 import com.example.doyinsave.model.MP4model;
 import com.example.doyinsave.utils.FileHelper;
 
 import java.io.File;
+import java.lang.reflect.Field;
 import java.util.List;
 
-public class AdapterMP3 extends BaseAdapter {
+public class AdapterMP4_1 extends BaseAdapter {
     private Context context;
-    private List<MP3model> list;
-    PopupWindow popupWindow;
-    int viewId;
-    public AdapterMP3(Context context, List<MP3model> list,int viewId) {
+    private List<MP4model> list;
+    private PopupWindow popupWindow;
+    public AdapterMP4_1(Context context, List<MP4model> list) {
         this.context = context;
         this.list = list;
-        this.viewId = viewId;
     }
 
     @Override
@@ -69,30 +60,27 @@ public class AdapterMP3 extends BaseAdapter {
         if (view == null) {
             // Nếu convertView không được tái sử dụng, inflate một layout mới
             LayoutInflater inflater = LayoutInflater.from(context);
-            view = inflater.inflate(viewId, viewGroup, false);
+            view = inflater.inflate(R.layout.item_mp4_1, viewGroup, false);
 
             // Tạo một ViewHolder để lưu trữ các thành phần của layout
             holder = new ViewHolder();
             holder.tvNameFile = view.findViewById(R.id.tv_name_music);
             holder.tvSizeFile = view.findViewById(R.id.tv_sizefile);
             holder.imgMenu = view.findViewById(R.id.img_menu);
-            holder.btnStart = view.findViewById(R.id.btn_start);
+            holder.btnStartVideo = view.findViewById(R.id.btn_start);
             view.setTag(holder);
         } else {
-            // Nếu convertView được tái sử dụng, sử dụng ViewHolder đã lưu trữ trước đó
             holder = (ViewHolder) view.getTag();
         }
 
-        // Thiết lập dữ liệu cho các thành phần của layout từ danh sách dữ liệu
-        MP3model item = list.get(i);
+        MP4model item = list.get(i);
         String title = item.getTitle();
-        int maxLength = 20; // Đặt độ dài tối đa bạn muốn hiển thị
+        int maxLength = 10;
         if (title.length() > maxLength) {
             title = title.substring(0, maxLength) + "...";
         }
         holder.tvNameFile.setText(title);
         holder.tvSizeFile.setText(FileHelper.getFileSize(item.getPath()));
-//        showCustomPopupMenu(item);
         holder.imgMenu.setOnClickListener(view1 -> {
 //            PopupMenu popupMenu = new PopupMenu(context, holder.imgMenu);
 //            popupMenu.getMenuInflater().inflate(R.menu.menu_click_item, popupMenu.getMenu());
@@ -100,6 +88,7 @@ public class AdapterMP3 extends BaseAdapter {
 //                switch (item1.getItemId()) {
 //                    case R.id.share:
 //                        shareFile(item.getTitle(), item.getParent());
+//
 //                        return true;
 //                    case R.id.delete:
 //                        deleteFile(item.getTitle(), item.getParent());
@@ -108,21 +97,19 @@ public class AdapterMP3 extends BaseAdapter {
 //                return false;
 //            });
 //            popupMenu.show();
-
             showPopup(view1,item);
         });
-        holder.btnStart.setOnClickListener(v -> {
-            playAudio(item.getTitle(), item.getParent());
+        holder.btnStartVideo.setOnClickListener(v -> {
+            startVideo(item.getTitle(), item.getParent());
             onItemClicked1(item.getPath());
         });
         return view;
     }
 
-    // ViewHolder để lưu trữ các thành phần của layout và tránh việc gọi findViewById nhiều lần
     static class ViewHolder {
         TextView tvNameFile, tvSizeFile;
         ImageView imgMenu;
-        ConstraintLayout btnStart;
+        ConstraintLayout btnStartVideo;
     }
 
     private void deleteFile(String nameFile, String path) {
@@ -132,7 +119,7 @@ public class AdapterMP3 extends BaseAdapter {
             if (deleted) {
                 Log.e("Delete1", "File đã được xóa");
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    list.removeIf(mp3model -> mp3model.getTitle().equals(nameFile) && mp3model.getParent().equals(path));
+                    list.removeIf(mp4model -> mp4model.getTitle().equals(nameFile) && mp4model.getParent().equals(path));
                 }
                 notifyDataSetChanged();
             } else {
@@ -150,31 +137,34 @@ public class AdapterMP3 extends BaseAdapter {
             Intent shareIntent = new Intent(Intent.ACTION_SEND);
             shareIntent.setType("*/*");
             shareIntent.putExtra(Intent.EXTRA_STREAM, fileUri);
-            context.startActivity(Intent.createChooser(shareIntent,  context.getString(R.string.share_file)));
+            context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_file)));
 
         } else {
             Log.e("Share1", "File không tồn tại");
         }
     }
 
-    private void playAudio(String nameFile, String path) {
-        File file = new File(path, nameFile);
+    private void startVideo(String fileName, String folderPath) {
+        File file = new File(folderPath, fileName);
         if (file.exists()) {
-//            Uri audioUri = Uri.fromFile(file);
-//            Intent audioIntent = new Intent(Intent.ACTION_VIEW);
-//            audioIntent.setDataAndType(audioUri, "audio/*");
-//            audioIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+//            Uri videoUri = Uri.fromFile(file);
+//            Intent videoIntent = new Intent(Intent.ACTION_VIEW);
+//            videoIntent.setDataAndType(videoUri, "video/*");
+//            videoIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 //
 //            try {
-//                context.startActivity(audioIntent);
+//                // Mở trình xem video
+//                context.startActivity(videoIntent);
 //            } catch (Exception e) {
-//                Log.e("Music", "Không có ứng dụng hỗ trợ nghe nhạc");
+//                Log.e("PlayVideo", "Không có ứng dụng hỗ trợ xem video");
 //            }
 //            onItemClicked(file);
+
         } else {
-            Log.e("Music", "File âm thanh không tồn tại");
+            Log.e("PlayVideo", "File video không tồn tại");
         }
     }
+
     public void onItemClicked(File file) {
         Uri uri = FileProvider.getUriForFile(context, context.getApplicationContext().getPackageName() + ".provider", file);
         Intent intent = new Intent();
@@ -183,13 +173,14 @@ public class AdapterMP3 extends BaseAdapter {
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         context.startActivity(intent);
     }
-    public void onItemClicked1(String path){
+
+    public void onItemClicked1(String path) {
         Intent intent = new Intent(context, MusicActivity.class);
-        intent.putExtra("typeFile",2);
-        intent.putExtra("pathFile",path);
+        intent.putExtra("typeFile", 1);
+        intent.putExtra("pathFile", path);
         context.startActivity(intent);
     }
-    public void showPopup(View anchorView, MP3model model) {
+    public void showPopup(View anchorView,MP4model model) {
         // Inflate layout
         LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         View popupView = inflater.inflate(R.layout.custom_menu, null);

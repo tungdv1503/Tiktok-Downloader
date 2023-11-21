@@ -72,6 +72,7 @@ public class Mp3Fragment extends Fragment {
     }
 
     private void listener(View v) {
+        lvDanhSach.setDivider(null);
         showList();
     }
     public void showList(){
@@ -89,7 +90,7 @@ public class Mp3Fragment extends Fragment {
                 }
                 for (File mp3File : mp3Files) {
                     list.add(new MP3model(mp3File.getName(), mp3File.getAbsolutePath(),mp3File.getParent()));
-                    adapterMP3 = new AdapterMP3(getContext(), list);
+                    adapterMP3 = new AdapterMP3(getContext(), list,R.layout.item_mp3);
                     lvDanhSach.setAdapter(adapterMP3);
                     adapterMP3.notifyDataSetChanged();
                 }

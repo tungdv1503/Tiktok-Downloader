@@ -1,6 +1,7 @@
 package com.example.doyinsave;
 
 import static android.content.ContentValues.TAG;
+import static com.example.doyinsave.utils.FileHelper.getMp3FilesFromFolder;
 import static com.example.doyinsave.utils.FileHelper.getMp4FilesFromFolder;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -8,7 +9,6 @@ import androidx.core.app.ActivityCompat;
 
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -18,9 +18,9 @@ import android.content.ClipDescription;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 
+import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -28,15 +28,16 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -44,25 +45,24 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.Observable;
 
-import com.example.doyinsave.api.Client;
-import com.example.doyinsave.api.TiktokService;
-import com.example.doyinsave.utils.FileHelper;
+import com.example.doyinsave.adapter.AdapterMP3;
+import com.example.doyinsave.adapter.AdapterMP4_1;
+import com.example.doyinsave.model.MP3model;
+import com.example.doyinsave.model.MP4model;
+import com.example.doyinsave.utils.NetworkUtils;
 import com.google.android.gms.ads.AdError;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.FullScreenContentCallback;
 import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.rewarded.RewardedAd;
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
-import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 
 import io.reactivex.rxjava3.core.ObservableEmitter;
@@ -73,7 +73,6 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import okhttp3.ResponseBody;
 
 public class MainActivity extends AppCompatActivity {
     TextInputEditText edtsetLink;
@@ -81,6 +80,13 @@ public class MainActivity extends AppCompatActivity {
     private Disposable disposable;
     private RewardedAd rewardedAd;
     boolean isLoading;
+    private ListView lv_JustDownload;
+    List<MP3model> itemMp3;
+    List<MP4model> itemMp4;
+    private long downloadID;
+    private Handler handler;
+    private static final int DELAY_MILLIS = 1000;
+    boolean isceck = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,9 +94,11 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.home_activity);
         setStatusBarGradiant(this);
         edtsetLink = findViewById(R.id.edt_setLink);
+        lv_JustDownload = findViewById(R.id.lv_just_download);
         AlertDialog(this);
         listener();
         loadRewardedAd();
+        getReceivedData();
         if (isStoragePermissionGranted()) {
             File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), getString(R.string.app_name));
             if (!directory.exists()) {
@@ -102,6 +110,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void listener() {
+        itemMp3 = new ArrayList<>();
+        itemMp4 = new ArrayList<>();
+        handler = new Handler();
         findViewById(R.id.btn_paste).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -122,20 +133,28 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 if (isStoragePermissionGranted()) {
-                    String url = edtsetLink.getText().toString();
-                    if (!url.isEmpty() && url.contains("tiktok")) {
-//                        callAPI(url);
-//                        download(url);
-                        Observable<String> observable = getResponseBody(url);
-                        Observer<String> observer = getObserverBody();
-                        observable.subscribeOn(Schedulers.io())
-                                .observeOn(AndroidSchedulers.mainThread())
-                                .subscribe(observer);
-
-                        dialog.show();
+//                    if (NetworkUtils.isNetworkConnected(MainActivity.this)) {
+//
+//                    } else {
+//                        Toast.makeText(MainActivity.this, getString(R.string.no_internet), Toast.LENGTH_SHORT).show();
+//                    }
+                    if (!NetworkUtils.isWifiConnected(MainActivity.this)&&!NetworkUtils.isMobileDataConnected(MainActivity.this)) {
+                        Toast.makeText(MainActivity.this, getString(R.string.no_internet), Toast.LENGTH_SHORT).show();
                     } else {
-                        Toast.makeText(MainActivity.this, "Enter a Valid URL!!", Toast.LENGTH_SHORT).show();
+                        String url = edtsetLink.getText().toString();
+                        if (!url.isEmpty() && url.contains("tiktok")) {
+                            Observable<String> observable = getResponseBody(url);
+                            Observer<String> observer = getObserverBody();
+                            observable.subscribeOn(Schedulers.io())
+                                    .observeOn(AndroidSchedulers.mainThread())
+                                    .subscribe(observer);
+                            dialog.show();
+                        } else {
+                            Toast.makeText(MainActivity.this, "Enter a Valid URL!!", Toast.LENGTH_SHORT).show();
+                        }
                     }
+
+
                 }
             }
         });
@@ -162,7 +181,7 @@ public class MainActivity extends AppCompatActivity {
     public static void setStatusBarGradiant(Activity activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             Window window = activity.getWindow();
-            Drawable background = activity.getResources().getDrawable(R.color.white);
+            Drawable background = activity.getResources().getDrawable(R.color.black);
             window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
             window.setStatusBarColor(activity.getResources().getColor(android.R.color.transparent));
             window.setBackgroundDrawable(background);
@@ -183,9 +202,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private void processJsonResponse(String jsonResponse) {
+    private void processJsonResponseYi005(String jsonResponse) {
         JsonObject jsonObject = new Gson().fromJson(jsonResponse, JsonObject.class);
-
         // Kiểm tra xem có khối "data" không
         if (jsonObject.has("data")) {
             JsonObject dataObject = jsonObject.getAsJsonObject("data");
@@ -195,6 +213,54 @@ public class MainActivity extends AppCompatActivity {
         } else {
             System.out.println("Không có khối dữ liệu (data) trong response.");
         }
+    }
+
+    private void processJsonResponseMaatootz(String jsonResponse) {
+        JsonObject jsonObject = new Gson().fromJson(jsonResponse, JsonObject.class);
+        if (jsonResponse != null) {
+            // Lấy các giá trị từ JSON và hiển thị chúng trên giao diện người dùng
+            String videoUrl = jsonObject.getAsJsonArray("video").get(0).getAsString();
+            String musicUrl = jsonObject.getAsJsonArray("music").get(0).getAsString();
+            String videoid = jsonObject.getAsJsonArray("videoid").get(0).getAsString();
+            showBottomDialogMaatootz(videoUrl, musicUrl, videoid);
+        }
+    }
+
+    private void showBottomDialogMaatootz(String Play, String PlayMP3, String id) {
+        Dialog bottomSheetDialog = new Dialog(this);
+        bottomSheetDialog.setContentView(R.layout.dialog_download);
+        LinearLayout btnMp4 = bottomSheetDialog.findViewById(R.id.btn_downloadmp4);
+        LinearLayout btnMp3 = bottomSheetDialog.findViewById(R.id.btn_downloadmp3);
+        TextView tvNameMp3 = bottomSheetDialog.findViewById(R.id.tv_namefilemp3);
+        TextView tvNameMp4 = bottomSheetDialog.findViewById(R.id.tv_namefilemp4);
+        ImageView btnClose = bottomSheetDialog.findViewById(R.id.img_close);
+        View decorView = bottomSheetDialog.getWindow().getDecorView();
+        decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+        //
+        Window window = bottomSheetDialog.getWindow();
+        if (window == null) {
+            return;
+        }
+        window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
+        window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        WindowManager.LayoutParams windowAttributes = window.getAttributes();
+        window.setAttributes(windowAttributes);
+        windowAttributes.gravity = Gravity.BOTTOM;
+        btnMp4.setOnClickListener(view -> {
+            String fileNameMP4 = "ct" + id + System.currentTimeMillis() + ".mp4";
+            tvNameMp4.setText(fileNameMP4);
+            startDownload(Play, fileNameMP4);
+            bottomSheetDialog.dismiss();
+        });
+
+        btnMp3.setOnClickListener(view -> {
+            String fileNameMP3 = "ct" + id + System.currentTimeMillis() + ".mp3";
+            tvNameMp3.setText(fileNameMP3 + ".mp3");
+            startDownload(PlayMP3, fileNameMP3);
+            bottomSheetDialog.dismiss();
+        });
+        btnClose.setOnClickListener(view -> bottomSheetDialog.dismiss());
+        bottomSheetDialog.show();
     }
 
     private void showBottomSheetDialog(JsonObject dataObject, JsonObject dataObjectMS) {
@@ -263,7 +329,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startDownload(String url, String namefile) {
-
+        itemMp3.clear();
+        itemMp4.clear();
         File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), getString(R.string.app_name));
         if (!directory.exists()) {
             directory.mkdirs();
@@ -274,11 +341,61 @@ public class MainActivity extends AppCompatActivity {
         request.setDescription(namefile);
         request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
         request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS + "/" + getString(R.string.app_name), namefile);
+        request.setMimeType("application/vnd.android.package-archive");
         DownloadManager downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
         if (downloadManager != null) {
-            downloadManager.enqueue(request);
+            downloadID = downloadManager.enqueue(request);
+            isceck = true;
+            startDownloadStatusBroadcastLoop(downloadID, namefile);
         }
     }
+
+    private void handleDownloadStatus(int status, String namefile1) {
+        if (status == DownloadManager.STATUS_SUCCESSFUL) {
+
+            if (namefile1.contains(".")) {
+                String result = namefile1.substring(namefile1.lastIndexOf(".") + 1);
+                System.out.println(result); // In ra phần mở rộng của tệp
+
+                String folderPath1 = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/" + getString(R.string.app_name);
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                        if (result.equals("mp3")) {
+                            itemMp3 = new ArrayList<>();
+                            List<File> mp3Files = getMp3FilesFromFolder(folderPath1);
+                            for (File mp3File : mp3Files) {
+                                if (mp3File.getName().equals(namefile1)) {
+                                    itemMp3.add(new MP3model(mp3File.getName(), mp3File.getAbsolutePath(), mp3File.getParent()));
+                                    AdapterMP3 adapterMP3 = new AdapterMP3(MainActivity.this, itemMp3,R.layout.item_mp4_1);
+                                    lv_JustDownload.setAdapter(adapterMP3);
+                                }
+
+
+                            }
+                        } else if (result.equals("mp4")) {
+                            itemMp4 = new ArrayList<>();
+                            List<File> mp4Files = getMp4FilesFromFolder(folderPath1);
+                            for (File mp4File : mp4Files) {
+                                if (mp4File.getName().equals(namefile1)) {
+                                    itemMp4.add(new MP4model(mp4File.getName(), mp4File.getAbsolutePath(), mp4File.getParent()));
+                                    AdapterMP4_1 adapterMP3 = new AdapterMP4_1(MainActivity.this, itemMp4);
+                                    lv_JustDownload.setAdapter(adapterMP3);
+                                }
+                            }
+
+                        }
+                    } else {
+                        requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+                    }
+                }
+
+            }
+            stopDownloadStatusBroadcastLoop();
+        } else {
+        }
+    }
+
 
     private void AlertDialog(Context context) {
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
@@ -315,7 +432,8 @@ public class MainActivity extends AppCompatActivity {
             public void onNext(@NonNull String s) {
                 dialog.dismiss();
                 Log.e("onNext", "onNext" + s);
-                processJsonResponse(s);
+//                processJsonResponseYi005(s);
+                processJsonResponseMaatootz(s);
                 if (disposable != null) {
                     disposable.dispose();
                 }
@@ -342,10 +460,17 @@ public class MainActivity extends AppCompatActivity {
                 OkHttpClient client = new OkHttpClient();
 
                 Request request = new Request.Builder()
-                        .url("https://tiktok-video-no-watermark2.p.rapidapi.com/?url=" + url)
+//                        .url(getString(R.string.url_api_yi005) + url)
+//                        .url(getString(R.string.url_api_yi005_1) + url)
+                        .url(getString(R.string.url_api_maatootz) + url)
+                        //
                         .get()
                         .addHeader("X-RapidAPI-Key", getString(R.string.api_key))
-                        .addHeader("X-RapidAPI-Host", getString(R.string.api_host))
+                        //
+//                        .addHeader("X-RapidAPI-Host", getString(R.string.api_host_yi005))
+                        //
+//                        .addHeader("X-RapidAPI-Host", getString(R.string.api_host_yi005_1))
+                        .addHeader("X-RapidAPI-Host", getString(R.string.api_host_maatootz))
                         .build();
                 try {
                     Response response = client.newCall(request).execute();
@@ -375,6 +500,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+
 
     public void loadRewardedAd() {
         if (rewardedAd == null) {
@@ -446,5 +572,50 @@ public class MainActivity extends AppCompatActivity {
                     // Handle the reward.
                     Log.d("TAG", "The user earned the reward.");
                 });
+    }
+
+    private void getReceivedData() {
+        if (Intent.ACTION_SEND.equals(getIntent().getAction())) {
+            String sharedText = getIntent().getStringExtra(Intent.EXTRA_TEXT);
+            if (sharedText != null) {
+                edtsetLink.setText(sharedText);
+            }
+        }
+    }
+
+    private void startDownloadStatusBroadcastLoop(long downloadID, String namefile) {
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (isceck) {
+                    sendDownloadStatusBroadcast(downloadID, namefile);
+                    handler.postDelayed(this, DELAY_MILLIS);
+                }
+
+            }
+        }, DELAY_MILLIS);
+    }
+
+    private void stopDownloadStatusBroadcastLoop() {
+        if (handler != null) {
+            handler.removeCallbacksAndMessages(null);
+            isceck = false;
+        }
+    }
+
+    private void sendDownloadStatusBroadcast(long downloadId, String namefile) {
+        DownloadManager downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+        if (downloadManager != null) {
+            DownloadManager.Query query = new DownloadManager.Query();
+            query.setFilterById(downloadId);
+            try (Cursor cursor = downloadManager.query(query)) {
+                if (cursor.moveToFirst()) {
+                    int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+                    int status = cursor.getInt(statusIndex);
+
+                    handleDownloadStatus(status, namefile);
+                }
+            }
+        }
     }
 }

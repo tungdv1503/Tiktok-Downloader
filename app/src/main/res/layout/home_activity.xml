@@ -99,6 +99,14 @@
 
 
         </LinearLayout>
+        <ListView
+            android:id="@+id/lv_just_download"
+            android:paddingRight="24dp"
+            android:paddingLeft="24dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+        </ListView>
 
         <RelativeLayout
             android:layout_weight="50"

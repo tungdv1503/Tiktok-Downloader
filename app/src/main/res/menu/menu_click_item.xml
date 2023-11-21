@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
-
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
     <item android:id="@+id/share"
         android:title="@string/share_to"
-        android:icon="@drawable/emoji_share"/>
+        android:icon="@drawable/baseline_share_24"/>
 
     <item android:id="@+id/delete"
         android:title="@string/delete"
-        android:icon="@drawable/icon_trashdelete"/>
-
+        android:icon="@drawable/baseline_delete_24"/>
 </menu>

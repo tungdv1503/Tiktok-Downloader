@@ -11,7 +11,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.PopupMenu;
+import android.widget.PopupWindow;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
@@ -28,7 +30,7 @@ import java.util.List;
 public class AdapterMP4 extends BaseAdapter {
     private Context context;
     private List<MP4model> list;
-
+    private PopupWindow popupWindow;
     public AdapterMP4(Context context, List<MP4model> list) {
         this.context = context;
         this.list = list;
@@ -63,7 +65,7 @@ public class AdapterMP4 extends BaseAdapter {
             holder.tvNameFile = view.findViewById(R.id.tv_name);
             holder.tvSizeFile = view.findViewById(R.id.tv_size);
             holder.imgMenu = view.findViewById(R.id.img_menu);
-            holder.btnStartVideo = view.findViewById(R.id.btn_startVideo);
+            holder.btnStartVideo = view.findViewById(R.id.btn_start);
             view.setTag(holder);
         } else {
             holder = (ViewHolder) view.getTag();
@@ -78,21 +80,22 @@ public class AdapterMP4 extends BaseAdapter {
         holder.tvNameFile.setText(title);
         holder.tvSizeFile.setText(FileHelper.getFileSize(item.getPath()));
         holder.imgMenu.setOnClickListener(view1 -> {
-            PopupMenu popupMenu = new PopupMenu(context, holder.imgMenu);
-            popupMenu.getMenuInflater().inflate(R.menu.menu_click_item, popupMenu.getMenu());
-            popupMenu.setOnMenuItemClickListener(item1 -> {
-                switch (item1.getItemId()) {
-                    case R.id.share:
-                        shareFile(item.getTitle(),item.getParent());
-
-                        return true;
-                    case R.id.delete:
-                        deleteFile(item.getTitle(), item.getParent());
-                        return true;
-                }
-                return false;
-            });
-            popupMenu.show();
+//            PopupMenu popupMenu = new PopupMenu(context, holder.imgMenu);
+//            popupMenu.getMenuInflater().inflate(R.menu.menu_click_item, popupMenu.getMenu());
+//            popupMenu.setOnMenuItemClickListener(item1 -> {
+//                switch (item1.getItemId()) {
+//                    case R.id.share:
+//                        shareFile(item.getTitle(),item.getParent());
+//
+//                        return true;
+//                    case R.id.delete:
+//                        deleteFile(item.getTitle(), item.getParent());
+//                        return true;
+//                }
+//                return false;
+//            });
+//            popupMenu.show();
+            showPopup(view1,item);
         });
         holder.btnStartVideo.setOnClickListener(v -> {
             startVideo(item.getTitle(),item.getParent());
@@ -130,7 +133,7 @@ public class AdapterMP4 extends BaseAdapter {
             Intent shareIntent = new Intent(Intent.ACTION_SEND);
             shareIntent.setType("*/*");
             shareIntent.putExtra(Intent.EXTRA_STREAM, fileUri);
-            context.startActivity(Intent.createChooser(shareIntent, "Chia sẻ file qua"));
+            context.startActivity(Intent.createChooser(shareIntent,  context.getString(R.string.share_file)));
 
         } else {
             Log.e("Share1", "File không tồn tại");
@@ -169,5 +172,38 @@ public class AdapterMP4 extends BaseAdapter {
         intent.putExtra("typeFile",1);
         intent.putExtra("pathFile",path);
         context.startActivity(intent);
+    }
+    public void showPopup(View anchorView,MP4model model) {
+        // Inflate layout
+        LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        View popupView = inflater.inflate(R.layout.custom_menu, null);
+        int widthInDp = 200; // Example width in dp
+        int heightInDp = 100; // Example height in dp
+        int widthInPx = dpToPx(widthInDp);
+        int heightInPx = dpToPx(heightInDp);
+        popupWindow = new PopupWindow(popupView, widthInPx, heightInPx, true);
+
+        LinearLayout imgShare = popupView.findViewById(R.id.img_share);
+        LinearLayout imgDelete = popupView.findViewById(R.id.img_delete);
+
+        popupWindow.showAsDropDown(anchorView); // Or use other methods like showAtLocation() as needed
+        imgShare.setOnClickListener(v -> {
+            shareFile(model.getTitle(), model.getParent());
+            dismissPopup();
+        });
+        imgDelete.setOnClickListener(v -> {
+            deleteFile(model.getTitle(), model.getParent());
+            dismissPopup();
+        });
+    }
+
+    public void dismissPopup() {
+        if (popupWindow != null && popupWindow.isShowing()) {
+            popupWindow.dismiss();
+        }
+    }
+    private int dpToPx(int dp) {
+        float density = context.getResources().getDisplayMetrics().density;
+        return Math.round((float) dp * density);
     }
 }

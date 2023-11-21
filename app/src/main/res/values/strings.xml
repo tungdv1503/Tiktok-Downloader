@@ -20,9 +20,16 @@
     <string name="url_error">enter a valid url</string>
     <string name="download_start">Starting Download</string>
     <string name="api_key">73135137fcmsh589dcae25a44bf0p198052jsn12c80012d291</string>
-    <string name="api_host">tiktok-video-no-watermark2.p.rapidapi.com</string>
+    <string name="api_host_yi005">tiktok-video-no-watermark2.p.rapidapi.com</string>
+    <string name="url_api_yi005">https://tiktok-video-no-watermark2.p.rapidapi.com/?url=</string>
+    <string name="api_host_yi005_1">tiktok-download-without-watermark.p.rapidapi.com</string>
+    <string name="url_api_yi005_1">https://tiktok-download-without-watermark.p.rapidapi.com/analysis?url=</string>
+    <string name="api_host_maatootz">tiktok-downloader-download-tiktok-videos-without-watermark.p.rapidapi.com</string>
+    <string name="url_api_maatootz">https://tiktok-downloader-download-tiktok-videos-without-watermark.p.rapidapi.com/vid/index?url=</string>
     <string name="video_quality">Chất lượng video?</string>
     <string name="no_file_download">Chưa có mục tải xuống</string>
+    <string name="share_file">Chia sẻ file qua</string>
+    <string name="no_internet">Không có kết nối internet</string>
     //
     <string name="AD_UNIT_ID">ca-app-pub-3940256099942544/5224354917</string>
     <string name="ADS_ID">ca-app-pub-3940256099942544~3347511713</string>

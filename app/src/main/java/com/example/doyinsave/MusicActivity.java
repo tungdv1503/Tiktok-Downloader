@@ -48,6 +48,7 @@ public class MusicActivity extends AppCompatActivity {
     String path = "";
     private Handler handler;
     float playbackSpeed = 1.0f;
+    boolean a = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,32 +86,35 @@ public class MusicActivity extends AppCompatActivity {
         Uri uri = Uri.parse(path);
         if (type == 1) {
             videoView.setVisibility(View.VISIBLE);
+            tvSpeed.setVisibility(View.GONE);
             playVideo(uri);
             updateSeekBar.start();
         } else if (type == 2) {
             videoView.setVisibility(View.GONE);
+            tvSpeed.setVisibility(View.VISIBLE);
             playMusic(uri);
             updateSeekBar.start();
         }
         img_pause.setOnClickListener(v -> {
-            if (player != null) {
-
-                if (player.isPlaying()) {
-                    img_pause.setImageResource(R.drawable.icon_start);
-                    player.pause();
-                } else {
-                    img_pause.setImageResource(R.drawable.pause);
-                    player.start();
+            if (type == 1) {
+                if (videoView != null) {
+                    if (videoView.isPlaying()) {
+                        img_pause.setImageResource(R.drawable.icon_start);
+                        videoView.pause();
+                    } else {
+                        img_pause.setImageResource(R.drawable.pause);
+                        videoView.start();
+                    }
                 }
-            }
-            if (videoView != null) {
-
-                if (videoView.isPlaying()) {
-                    img_pause.setImageResource(R.drawable.icon_start);
-                    videoView.pause();
-                } else {
-                    img_pause.setImageResource(R.drawable.pause);
-                    videoView.start();
+            } else if (type == 2) {
+                if (player != null) {
+                    if (player.isPlaying()) {
+                        img_pause.setImageResource(R.drawable.icon_start);
+                        player.pause();
+                    } else {
+                        img_pause.setImageResource(R.drawable.pause);
+                        player.start();
+                    }
                 }
             }
         });
@@ -126,7 +130,6 @@ public class MusicActivity extends AppCompatActivity {
                 }
 
                 videoView.seekTo(newPosition);
-                //            currentVideoPosition = newPosition;
             } else if (type == 2) {
                 int currentPosition = player.getCurrentPosition();
 
@@ -148,7 +151,6 @@ public class MusicActivity extends AppCompatActivity {
 
                 int newPosition = currentPosition - 10000;
 
-//            int videoDuration = videoView.getDuration();
                 if (newPosition < 0) {
                     newPosition = 0;
                 }
@@ -159,11 +161,10 @@ public class MusicActivity extends AppCompatActivity {
 
                 int newPosition = currentPosition - 10000;
 
-//            int videoDuration = videoView.getDuration();
+
                 if (newPosition < 0) {
                     newPosition = 0;
                 }
-
                 player.seekTo(newPosition);
             }
         });
@@ -171,6 +172,7 @@ public class MusicActivity extends AppCompatActivity {
             if (type == 1) {
 
             } else if (type == 2) {
+                tvSpeed.setVisibility(View.VISIBLE);
                 if (playbackSpeed == 1.0) {
                     playbackSpeed = 1.5f;
                     setSpeedMusic(playbackSpeed);
@@ -203,7 +205,6 @@ public class MusicActivity extends AppCompatActivity {
                         if (videoView != null) {
                             currentPosition = videoView.getCurrentPosition();
                             seekBar.setProgress(currentPosition);
-//                            displayTime(currentPosition, totalDuration);
                             int finalCurrentPosition = currentPosition;
                             handler.post(new Runnable() {
                                 @Override
@@ -227,8 +228,6 @@ public class MusicActivity extends AppCompatActivity {
         player.start();
         displayTime(0, player.getDuration());
         seekBar.setMax(player.getDuration());
-//        CreateCoutDown(player.getDuration());
-//        count.start();
         updateSeekBar = new Thread() {
             @Override
             public void run() {
@@ -247,7 +246,6 @@ public class MusicActivity extends AppCompatActivity {
                                     displayTime(finalCurrentPosition, totalDuration);
                                 }
                             });
-//
                         }
                         sleep(500);
                     } catch (InterruptedException e) {
@@ -259,8 +257,6 @@ public class MusicActivity extends AppCompatActivity {
     }
 
     private void displayTime(long currentSeconds, long durationInSeconds) {
-//        String formattedTime = TimeUtils.formatTime(currentSeconds);
-//        String formattedTime1 = TimeUtils.formatTime(durationInSeconds);
         tvCurrent.setText(formatTime(currentSeconds));
         tvDuration.setText(formatTime(durationInSeconds));
     }
@@ -274,26 +270,6 @@ public class MusicActivity extends AppCompatActivity {
         if (videoView != null) {
             videoView.stopPlayback();
         }
-    }
-
-    private void CreateCoutDown(long duration) {
-        count = new CountDownTimer(duration, 1000) {
-            @Override
-            public void onTick(long millisUntilFinished) {
-                if (type == 1) {
-                    displayTime(duration - millisUntilFinished, videoView.getDuration());
-                    Log.e("TimeVideo", duration - millisUntilFinished + "||" + player.getDuration());
-                } else if (type == 2) {
-                    displayTime(duration - millisUntilFinished + 1000, player.getDuration());
-                    Log.e("TimeMusic", duration - millisUntilFinished + "||" + player.getDuration());
-                }
-            }
-
-            @Override
-            public void onFinish() {
-
-            }
-        };
     }
 
     private String formatTime(long millis) {
@@ -337,12 +313,13 @@ public class MusicActivity extends AppCompatActivity {
             retriever.release();
         }
     }
-    private void setSpeedMusic(float playbackSpeed){
+
+    private void setSpeedMusic(float playbackSpeed) {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             PlaybackParams params = new PlaybackParams();
             params.setSpeed(playbackSpeed); // Đặt tốc độ mới
             player.setPlaybackParams(params);
-            tvSpeed.setText(playbackSpeed+"x");
+            tvSpeed.setText(playbackSpeed + "x");
         }
     }
 }
