@@ -4,11 +4,14 @@ import static com.example.doyinsave.utils.TimeUtils.formatTime;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.Activity;
 import android.content.Intent;
+import android.graphics.drawable.Drawable;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.media.PlaybackParams;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
@@ -16,6 +19,8 @@ import android.os.Looper;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.MediaController;
 import android.widget.SeekBar;
@@ -54,8 +59,10 @@ public class MusicActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_music);
+        setStatusBarGradiant(this);
         initViews();
         listener();
+
     }
 
     private void initViews() {
@@ -320,6 +327,15 @@ public class MusicActivity extends AppCompatActivity {
             params.setSpeed(playbackSpeed); // Đặt tốc độ mới
             player.setPlaybackParams(params);
             tvSpeed.setText(playbackSpeed + "x");
+        }
+    }
+    public static void setStatusBarGradiant(Activity activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            Window window = activity.getWindow();
+            Drawable background = activity.getResources().getDrawable(R.color.black);
+            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            window.setStatusBarColor(activity.getResources().getColor(android.R.color.transparent));
+            window.setBackgroundDrawable(background);
         }
     }
 }

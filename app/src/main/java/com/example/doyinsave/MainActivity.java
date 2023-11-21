@@ -95,6 +95,7 @@ public class MainActivity extends AppCompatActivity {
         setStatusBarGradiant(this);
         edtsetLink = findViewById(R.id.edt_setLink);
         lv_JustDownload = findViewById(R.id.lv_just_download);
+        edtsetLink.setSingleLine(true);
         AlertDialog(this);
         listener();
         loadRewardedAd();
@@ -432,8 +433,8 @@ public class MainActivity extends AppCompatActivity {
             public void onNext(@NonNull String s) {
                 dialog.dismiss();
                 Log.e("onNext", "onNext" + s);
-//                processJsonResponseYi005(s);
-                processJsonResponseMaatootz(s);
+                processJsonResponseYi005(s);
+//                processJsonResponseMaatootz(s);
                 if (disposable != null) {
                     disposable.dispose();
                 }

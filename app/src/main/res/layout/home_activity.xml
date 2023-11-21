@@ -44,6 +44,8 @@
                 android:layout_marginRight="10dp"
                 android:background="@drawable/textinput"
                 android:textColor="@color/black"
+                android:inputType="text"
+                android:maxLines="1"
                 app:layout_constraintTop_toTopOf="@+id/textInputLayout"
                 tools:layout_editor_absoluteX="0dp" />
         </com.google.android.material.textfield.TextInputLayout>
