@@ -34,4 +34,7 @@
     <string name="AD_UNIT_ID">ca-app-pub-3940256099942544/5224354917</string>
     <string name="ADS_ID">ca-app-pub-3940256099942544~3347511713</string>
     //
+    <string name="no_ads">Không có quảng cáo</string>
+    <string name="trainghiem">Trải nghiệm thoải mái hơn</string>
+    <string name="delete_ads">Xóa quảng cáo</string>
 </resources>

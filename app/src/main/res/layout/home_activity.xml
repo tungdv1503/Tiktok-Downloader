@@ -7,6 +7,7 @@
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <LinearLayout
+        android:id="@+id/layout_main1"
         android:weightSum="80"
         android:orientation="vertical"
         android:layout_width="match_parent"
@@ -52,6 +53,7 @@
 
         <LinearLayout
             android:layout_weight="1"
+            android:weightSum="2"
             android:id="@+id/linearLayout2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -60,6 +62,7 @@
             tools:layout_editor_absoluteX="0dp">
 
             <Button
+                android:layout_weight="1"
                 android:layout_marginLeft="24dp"
                 android:id="@+id/btn_paste"
                 style="@style/pastelinkButton"
@@ -70,6 +73,7 @@
                 android:textSize="15dp" />
 
             <Button
+                android:layout_weight="1"
                 android:id="@+id/btn_1"
                 style="@style/downloadButton"
                 android:layout_width="wrap_content"
@@ -137,7 +141,12 @@
                 android:background="@android:color/transparent"
                 android:src="@drawable/gifdefault" />
         </RelativeLayout>
-
-
+        <FrameLayout
+            android:id="@+id/ad_view_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:layout_alignParentBottom="true" />
     </LinearLayout>
+
 </FrameLayout>

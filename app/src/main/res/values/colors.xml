@@ -6,7 +6,7 @@
     <color name="purple_700">#FF3700B3</color>
     <color name="teal_200">#FF03DAC5</color>
     <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
+    <color name="black">#101828</color>
     <color name="white">#FFFFFFFF</color>
     <color name="main">#C5C5C5</color>
     <color name="color1">#0066FF</color>
@@ -15,4 +15,5 @@
     <color name="color4">#AFE7F8</color>
     <color name="color_item">#D9F1FF</color>
     <color name="colorPrimaryDark">#0596FF</color>
+    <color name="colortext_dialog_noads">#475467</color>
 </resources>

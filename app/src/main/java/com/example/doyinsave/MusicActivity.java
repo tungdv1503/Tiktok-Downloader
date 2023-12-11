@@ -317,7 +317,11 @@ public class MusicActivity extends AppCompatActivity {
             e.printStackTrace();
             return -1;
         } finally {
-            retriever.release();
+            try {
+                retriever.release();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 

@@ -11,6 +11,7 @@ import androidx.core.app.ActivityCompat;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Application;
 import android.app.Dialog;
 import android.app.DownloadManager;
 import android.content.ClipData;
@@ -27,14 +28,19 @@ import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Environment;
 import android.os.Handler;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Display;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -47,15 +53,29 @@ import io.reactivex.rxjava3.core.Observable;
 
 import com.example.doyinsave.adapter.AdapterMP3;
 import com.example.doyinsave.adapter.AdapterMP4_1;
+import com.example.doyinsave.adapter.AdapterVip;
+import com.example.doyinsave.admob.GoogleMobileAdsConsentManager;
+import com.example.doyinsave.admob.MyApplication;
 import com.example.doyinsave.model.MP3model;
 import com.example.doyinsave.model.MP4model;
+import com.example.doyinsave.model.Vipmodel;
 import com.example.doyinsave.utils.NetworkUtils;
 import com.google.android.gms.ads.AdError;
 import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdSize;
+import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.FullScreenContentCallback;
 import com.google.android.gms.ads.LoadAdError;
+import com.google.android.gms.ads.MobileAds;
+import com.google.android.gms.ads.RequestConfiguration;
+import com.google.android.gms.ads.admanager.AdManagerAdRequest;
+import com.google.android.gms.ads.admanager.AdManagerAdView;
+import com.google.android.gms.ads.initialization.InitializationStatus;
+import com.google.android.gms.ads.initialization.OnInitializationCompleteListener;
 import com.google.android.gms.ads.rewarded.RewardedAd;
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
+
+
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -63,7 +83,10 @@ import com.google.gson.JsonObject;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.reactivex.rxjava3.core.ObservableEmitter;
 import io.reactivex.rxjava3.core.ObservableOnSubscribe;
@@ -78,16 +101,21 @@ public class MainActivity extends AppCompatActivity {
     TextInputEditText edtsetLink;
     private AlertDialog dialog;
     private Disposable disposable;
-    private RewardedAd rewardedAd;
-    boolean isLoading;
     private ListView lv_JustDownload;
     List<MP3model> itemMp3;
     List<MP4model> itemMp4;
-    private long downloadID;
     private Handler handler;
     private static final int DELAY_MILLIS = 1000;
     boolean isceck = false;
-
+    int index = 0;
+    private final AtomicBoolean isMobileAdsInitializeCalled = new AtomicBoolean(false);
+    private GoogleMobileAdsConsentManager googleMobileAdsConsentManager;
+    private final AtomicBoolean initialLayoutComplete = new AtomicBoolean(false);
+    static final String AD_UNIT = "/30497360/adaptive_banner_test_iu/backfill";
+    private static final String TAG = "MyActivity";
+    private AdManagerAdView adView;
+    private FrameLayout adContainerView;
+    private static final long COUNTER_TIME_MILLISECONDS = 5000;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -95,11 +123,12 @@ public class MainActivity extends AppCompatActivity {
         setStatusBarGradiant(this);
         edtsetLink = findViewById(R.id.edt_setLink);
         lv_JustDownload = findViewById(R.id.lv_just_download);
+        adContainerView = findViewById(R.id.ad_view_container);
         edtsetLink.setSingleLine(true);
         AlertDialog(this);
         listener();
-        loadRewardedAd();
         getReceivedData();
+
         if (isStoragePermissionGranted()) {
             File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), getString(R.string.app_name));
             if (!directory.exists()) {
@@ -108,74 +137,100 @@ public class MainActivity extends AppCompatActivity {
         }
 
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, PackageManager.PERMISSION_GRANTED);
+        googleMobileAdsConsentManager =
+                GoogleMobileAdsConsentManager.getInstance(getApplicationContext());
+        googleMobileAdsConsentManager.gatherConsent(
+                this,
+                consentError -> {
+                    if (consentError != null) {
+                        Log.w(
+                                "LOG_TAG",
+                                String.format(
+                                        "%s: %s", consentError.getErrorCode(), consentError.getMessage()));
+                    }
+
+                    if (googleMobileAdsConsentManager.canRequestAds()) {
+                        initializeMobileAdsSdk();
+                        initializeMobileAdsSdkBanner();
+                    }
+
+                });
+        if (googleMobileAdsConsentManager.canRequestAds()) {
+            initializeMobileAdsSdk();
+            initializeMobileAdsSdkBanner();
+        }
+        adContainerView
+                .getViewTreeObserver()
+                .addOnGlobalLayoutListener(
+                        () -> {
+                            if (!initialLayoutComplete.getAndSet(true)
+                                    && googleMobileAdsConsentManager.canRequestAds()) {
+                                loadBanner();
+                            }
+                        });
+
+        MobileAds.setRequestConfiguration(
+                new RequestConfiguration.Builder().setTestDeviceIds(Arrays.asList("ABCDEF012345")).build());
+        createTimer(COUNTER_TIME_MILLISECONDS);
     }
 
     private void listener() {
         itemMp3 = new ArrayList<>();
         itemMp4 = new ArrayList<>();
         handler = new Handler();
-        findViewById(R.id.btn_paste).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                String pasteData = "";
+        findViewById(R.id.btn_paste).setOnClickListener(view -> {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            String pasteData;
 
-                if (!(clipboard.hasPrimaryClip())) {
-                } else if (!(clipboard.getPrimaryClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN))) {
-                } else {
-                    ClipData.Item item = clipboard.getPrimaryClip().getItemAt(0);
-                    pasteData = item.getText().toString();
-                    edtsetLink.setText(pasteData);
-                }
+            if (!(clipboard.hasPrimaryClip())) {
+            } else if (!(clipboard.getPrimaryClipDescription().hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN))) {
+            } else {
+                ClipData.Item item = clipboard.getPrimaryClip().getItemAt(0);
+                pasteData = item.getText().toString();
+                edtsetLink.setText(pasteData);
             }
         });
 
-        findViewById(R.id.btn_1).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (isStoragePermissionGranted()) {
+        findViewById(R.id.btn_1).setOnClickListener(view -> {
+            if (isStoragePermissionGranted()) {
 //                    if (NetworkUtils.isNetworkConnected(MainActivity.this)) {
 //
 //                    } else {
 //                        Toast.makeText(MainActivity.this, getString(R.string.no_internet), Toast.LENGTH_SHORT).show();
 //                    }
-                    if (!NetworkUtils.isWifiConnected(MainActivity.this)&&!NetworkUtils.isMobileDataConnected(MainActivity.this)) {
-                        Toast.makeText(MainActivity.this, getString(R.string.no_internet), Toast.LENGTH_SHORT).show();
+                if (!NetworkUtils.isWifiConnected(MainActivity.this) && !NetworkUtils.isMobileDataConnected(MainActivity.this)) {
+                    Toast.makeText(MainActivity.this, getString(R.string.no_internet), Toast.LENGTH_SHORT).show();
+                } else {
+                    String url = edtsetLink.getText().toString();
+                    if (!url.isEmpty() && url.contains("tiktok")) {
+                        Observable<String> observable = getResponseBody(url);
+                        Observer<String> observer = getObserverBody();
+                        observable.subscribeOn(Schedulers.io())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe(observer);
+                        dialog.show();
                     } else {
-                        String url = edtsetLink.getText().toString();
-                        if (!url.isEmpty() && url.contains("tiktok")) {
-                            Observable<String> observable = getResponseBody(url);
-                            Observer<String> observer = getObserverBody();
-                            observable.subscribeOn(Schedulers.io())
-                                    .observeOn(AndroidSchedulers.mainThread())
-                                    .subscribe(observer);
-                            dialog.show();
-                        } else {
-                            Toast.makeText(MainActivity.this, "Enter a Valid URL!!", Toast.LENGTH_SHORT).show();
-                        }
+                        Toast.makeText(MainActivity.this, "Enter a Valid URL!!", Toast.LENGTH_SHORT).show();
                     }
-
-
                 }
+
+
             }
         });
 
-        findViewById(R.id.btn_help).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent intent = new Intent(MainActivity.this, HelpsActivity.class);
-                startActivity(intent);
-                overridePendingTransition(0, 0);
-            }
+        findViewById(R.id.btn_help).setOnClickListener(view -> {
+            Intent intent = new Intent(MainActivity.this, HelpsActivity.class);
+            startActivity(intent);
+            overridePendingTransition(0, 0);
         });
 
-        findViewById(R.id.btn_download).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent intent = new Intent(MainActivity.this, DownloadActivity.class);
-                startActivity(intent);
-                overridePendingTransition(0, 0);
-            }
+        findViewById(R.id.btn_download).setOnClickListener(view -> {
+            Intent intent = new Intent(MainActivity.this, DownloadActivity.class);
+            startActivity(intent);
+            overridePendingTransition(0, 0);
+        });
+        findViewById(R.id.btn_vip).setOnClickListener(v -> {
+            DialogVip(this);
         });
     }
 
@@ -219,7 +274,6 @@ public class MainActivity extends AppCompatActivity {
     private void processJsonResponseMaatootz(String jsonResponse) {
         JsonObject jsonObject = new Gson().fromJson(jsonResponse, JsonObject.class);
         if (jsonResponse != null) {
-            // Lấy các giá trị từ JSON và hiển thị chúng trên giao diện người dùng
             String videoUrl = jsonObject.getAsJsonArray("video").get(0).getAsString();
             String musicUrl = jsonObject.getAsJsonArray("music").get(0).getAsString();
             String videoid = jsonObject.getAsJsonArray("videoid").get(0).getAsString();
@@ -307,6 +361,7 @@ public class MainActivity extends AppCompatActivity {
                     String fileNameMP4 = "ct" + id + System.currentTimeMillis() + ".mp4";
                     tvNameMp4.setText(fileNameMP4);
                     startDownload(Play, fileNameMP4);
+
                 }
             }
             bottomSheetDialog.dismiss();
@@ -325,14 +380,16 @@ public class MainActivity extends AppCompatActivity {
             bottomSheetDialog.dismiss();
         });
         btnClose.setOnClickListener(view -> bottomSheetDialog.dismiss());
-        // Hiển thị BottomSheetDialog
         bottomSheetDialog.show();
     }
 
     private void startDownload(String url, String namefile) {
+        dialog.show();
         itemMp3.clear();
         itemMp4.clear();
+        String destination = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/" + getString(R.string.app_name) + "/";
         File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), getString(R.string.app_name));
+
         if (!directory.exists()) {
             directory.mkdirs();
         }
@@ -341,15 +398,20 @@ public class MainActivity extends AppCompatActivity {
         request.setTitle(getString(R.string.download));
         request.setDescription(namefile);
         request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS + "/" + getString(R.string.app_name), namefile);
-        request.setMimeType("application/vnd.android.package-archive");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            final Uri uri = Uri.parse("file://" + destination + namefile);
+            request.setDestinationUri(uri);
+        } else {
+            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS + "/" + getString(R.string.app_name), namefile);
+        }
         DownloadManager downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
         if (downloadManager != null) {
-            downloadID = downloadManager.enqueue(request);
+            long downloadID = downloadManager.enqueue(request);
             isceck = true;
             startDownloadStatusBroadcastLoop(downloadID, namefile);
         }
     }
+
 
     private void handleDownloadStatus(int status, String namefile1) {
         if (status == DownloadManager.STATUS_SUCCESSFUL) {
@@ -368,7 +430,7 @@ public class MainActivity extends AppCompatActivity {
                             for (File mp3File : mp3Files) {
                                 if (mp3File.getName().equals(namefile1)) {
                                     itemMp3.add(new MP3model(mp3File.getName(), mp3File.getAbsolutePath(), mp3File.getParent()));
-                                    AdapterMP3 adapterMP3 = new AdapterMP3(MainActivity.this, itemMp3,R.layout.item_mp4_1);
+                                    AdapterMP3 adapterMP3 = new AdapterMP3(MainActivity.this, itemMp3, R.layout.item_mp4_1);
                                     lv_JustDownload.setAdapter(adapterMP3);
                                 }
 
@@ -400,12 +462,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void AlertDialog(Context context) {
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        // Inflate the custom layout
         LayoutInflater inflater = getLayoutInflater();
         View view = inflater.inflate(R.layout.custom_progress_dialog, null);
-        // Set the custom view to the AlertDialog
         builder.setView(view);
-        // Create the AlertDialog
         dialog = builder.create();
         Window window = dialog.getWindow();
         if (window == null) {
@@ -433,8 +492,8 @@ public class MainActivity extends AppCompatActivity {
             public void onNext(@NonNull String s) {
                 dialog.dismiss();
                 Log.e("onNext", "onNext" + s);
-                processJsonResponseYi005(s);
-//                processJsonResponseMaatootz(s);
+//                processJsonResponseYi005(s);
+                processJsonResponseMaatootz(s);
                 if (disposable != null) {
                     disposable.dispose();
                 }
@@ -502,79 +561,6 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-
-    public void loadRewardedAd() {
-        if (rewardedAd == null) {
-            isLoading = true;
-            AdRequest adRequest = new AdRequest.Builder().build();
-            RewardedAd.load(
-                    this,
-                    getString(R.string.AD_UNIT_ID),
-                    adRequest,
-                    new RewardedAdLoadCallback() {
-                        @Override
-                        public void onAdFailedToLoad(@androidx.annotation.NonNull LoadAdError loadAdError) {
-                            // Handle the error.
-                            Log.d(TAG, loadAdError.getMessage());
-                            rewardedAd = null;
-                            MainActivity.this.isLoading = false;
-//                            Toast.makeText(MainActivity.this, "onAdFailedToLoad", Toast.LENGTH_SHORT).show();
-                        }
-
-                        @Override
-                        public void onAdLoaded(@androidx.annotation.NonNull RewardedAd rewardedAd) {
-                            MainActivity.this.rewardedAd = rewardedAd;
-                            Log.d(TAG, "onAdLoaded");
-                            MainActivity.this.isLoading = false;
-//                            Toast.makeText(MainActivity.this, "onAdLoaded", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-        }
-    }
-
-    public void showRewardedVideo() {
-        if (rewardedAd == null) {
-            Log.d("TAG", "The rewarded ad wasn't ready yet.");
-            return;
-        }
-
-        rewardedAd.setFullScreenContentCallback(
-                new FullScreenContentCallback() {
-                    @Override
-                    public void onAdShowedFullScreenContent() {
-                        Log.d(TAG, "onAdShowedFullScreenContent");
-//                        Toast.makeText(MainActivity.this, "onAdShowedFullScreenContent", Toast.LENGTH_SHORT)
-//                                .show();
-                    }
-
-                    @Override
-                    public void onAdFailedToShowFullScreenContent(@androidx.annotation.NonNull AdError adError) {
-                        rewardedAd = null;
-                        Log.d(TAG, "Error:" + adError);
-//                        Toast.makeText(
-//                                        MainActivity.this, "onAdFailedToShowFullScreenContent", Toast.LENGTH_SHORT)
-//                                .show();
-                    }
-
-                    @Override
-                    public void onAdDismissedFullScreenContent() {
-                        rewardedAd = null;
-                        Log.d(TAG, "onAdDismissedFullScreenContent");
-//                        Toast.makeText(MainActivity.this, "onAdDismissedFullScreenContent", Toast.LENGTH_SHORT)
-//                                .show();
-                        MainActivity.this.loadRewardedAd();
-
-                    }
-                });
-        Activity activityContext = MainActivity.this;
-        rewardedAd.show(
-                activityContext,
-                rewardItem -> {
-                    // Handle the reward.
-                    Log.d("TAG", "The user earned the reward.");
-                });
-    }
-
     private void getReceivedData() {
         if (Intent.ACTION_SEND.equals(getIntent().getAction())) {
             String sharedText = getIntent().getStringExtra(Intent.EXTRA_TEXT);
@@ -598,6 +584,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void stopDownloadStatusBroadcastLoop() {
+        dialog.dismiss();
         if (handler != null) {
             handler.removeCallbacksAndMessages(null);
             isceck = false;
@@ -618,5 +605,163 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
+    }
+
+    private void DialogVip(Context context) {
+        List<Vipmodel> list = new ArrayList<>();
+        list.add(new Vipmodel("Tuần", 12000, 7));
+        list.add(new Vipmodel("Tháng", 26000, 30));
+        list.add(new Vipmodel("Năm", 115000, 365));
+        list.add(new Vipmodel("Vĩnh viễn", 232000, 36500));
+        Dialog dialog1 = new Dialog(context);
+        dialog1.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog1.setContentView(R.layout.dialog_vip);
+//        dialog1.setCancelable(false);
+//        dialog1.setCanceledOnTouchOutside(false);
+        //
+        View decorView = dialog1.getWindow().getDecorView();
+        decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+        //
+        Window window = dialog1.getWindow();
+        if (window == null) {
+            return;
+        }
+        window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
+        window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        WindowManager.LayoutParams windowAttributes = window.getAttributes();
+        windowAttributes.gravity = Gravity.CENTER;
+        window.setAttributes(windowAttributes);
+
+        AdapterVip adapterVip = new AdapterVip(context, list);
+        ListView listView = dialog1.findViewById(R.id.lv_vip);
+        ImageView imagClose = dialog1.findViewById(R.id.img_close);
+        Button btnBuy = dialog1.findViewById(R.id.btn_buy);
+        listView.setAdapter(adapterVip);
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            adapterVip.setSelectedItem(position);
+            adapterVip.notifyDataSetChanged();
+            index = position;
+
+        });
+        btnBuy.setOnClickListener(v -> {
+
+        });
+        imagClose.setOnClickListener(v -> dialog1.dismiss());
+        dialog1.show();
+    }
+
+    private void showInterstitialAds(){
+        Application application = getApplication();
+        ((MyApplication) application)
+                .showAdIfAvailable(
+                        this,
+                        new MyApplication.OnShowAdCompleteListener() {
+                            @Override
+                            public void onShowAdComplete() {
+                                if (googleMobileAdsConsentManager.canRequestAds()) {
+
+                                }
+                            }
+                        });
+    }
+    private void initializeMobileAdsSdk() {
+        if (isMobileAdsInitializeCalled.getAndSet(true)) {
+            return;
+        }
+
+        // Initialize the Mobile Ads SDK.
+        MobileAds.initialize(this);
+
+        // Load an ad.
+        Application application = getApplication();
+        ((MyApplication) application).loadAd(this);
+    }
+
+    @Override
+    public void onPause() {
+        if (adView != null) {
+            adView.pause();
+        }
+        super.onPause();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (adView != null) {
+            adView.resume();
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        if (adView != null) {
+            adView.destroy();
+        }
+        super.onDestroy();
+    }
+
+    private void loadBanner() {
+        adView = new AdManagerAdView(this);
+        adView.setAdUnitId(AD_UNIT);
+        adView.setAdSize(getAdSize());
+
+        adContainerView.removeAllViews();
+        adContainerView.addView(adView);
+
+        AdManagerAdRequest adRequest = new AdManagerAdRequest.Builder().build();
+        adView.loadAd(adRequest);
+    }
+
+    private void initializeMobileAdsSdkBanner() {
+        if (isMobileAdsInitializeCalled.getAndSet(true)) {
+            return;
+        }
+
+        MobileAds.initialize(
+                this,
+                new OnInitializationCompleteListener() {
+                    @Override
+                    public void onInitializationComplete(InitializationStatus initializationStatus) {
+                    }
+                });
+
+        // Load an ad.
+        if (initialLayoutComplete.get()) {
+            loadBanner();
+        }
+    }
+
+    private AdSize getAdSize() {
+
+        Display display = getWindowManager().getDefaultDisplay();
+        DisplayMetrics outMetrics = new DisplayMetrics();
+        display.getMetrics(outMetrics);
+
+        float density = outMetrics.density;
+
+        float adWidthPixels = adContainerView.getWidth();
+
+        if (adWidthPixels == 0) {
+            adWidthPixels = outMetrics.widthPixels;
+        }
+
+        int adWidth = (int) (adWidthPixels / density);
+        return AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(this, adWidth);
+    }
+    private void createTimer(long time) {
+
+        CountDownTimer countDownTimer =
+                new CountDownTimer(time, 1000) {
+                    @Override
+                    public void onTick(long millisUntilFinished) {
+                    }
+
+                    @Override
+                    public void onFinish() {
+                        showInterstitialAds();
+                    }
+                };
+        countDownTimer.start();
     }
 }
